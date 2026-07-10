@@ -8,8 +8,9 @@ Jednoduchý editor obrázkov, ktorý beží celý v prehliadači. Tvoje obrázky
 ## Otvorenie obrázka
 
 Klikni hore na zelené tlačidlo **Otvoriť obrázok** a vyber súbor zo svojho
-počítača. Podporované formáty: **PNG, JPG, WebP, GIF, BMP** (fotky z iPhonu
-vo formáte HEIC zatiaľ nie — pribudnú čoskoro).
+počítača. Podporované formáty: **PNG, JPG, WebP, GIF, BMP** a aj **HEIC**
+(fotky z iPhonu) — tie sa najprv automaticky skonvertujú, chvíľku to potrvá
+a na tlačidle svieti „Konvertujem…".
 
 Obrázok sa zobrazí v strede plátna, prispôsobený veľkosti okna. Nič sa
 nikam nenahráva — súbor zostáva len v tvojom prehliadači.

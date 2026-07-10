@@ -11,9 +11,15 @@ const sachovnica: CSSProperties = {
 
 const ZOOM_KROK = 1.1;
 
-// Formáty, ktoré prehliadač zvládne natívne. HEIC pribudne neskôr cez heic2any.
+// Natívne formáty + HEIC (ten konvertujeme cez heic2any).
+// Prípony .heic/.heif sú v zozname aj samostatne — Windows im často nedáva MIME typ.
 const PODPOROVANE_FORMATY =
-	'image/png,image/jpeg,image/webp,image/gif,image/bmp';
+	'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/heic,image/heif,.heic,.heif';
+
+const jeHeic = (subor: File) =>
+	subor.type === 'image/heic' ||
+	subor.type === 'image/heif' ||
+	/\.hei[cf]$/i.test(subor.name);
 
 export default function Editor() {
 	const obalRef = useRef<HTMLDivElement>(null);
@@ -21,6 +27,7 @@ export default function Editor() {
 	const suborInputRef = useRef<HTMLInputElement>(null);
 	const [rozmer, setRozmer] = useState({ width: 0, height: 0 });
 	const [obrazok, setObrazok] = useState<HTMLImageElement | null>(null);
+	const [konvertujem, setKonvertujem] = useState(false);
 
 	// Plátno musí presne vyplniť svoj obal — sledujeme jeho veľkosť
 	// aj pri zmene veľkosti okna.
@@ -52,11 +59,31 @@ export default function Editor() {
 		});
 	};
 
-	const otvorSubor = (e: ChangeEvent<HTMLInputElement>) => {
+	const otvorSubor = async (e: ChangeEvent<HTMLInputElement>) => {
 		const subor = e.target.files?.[0];
+		// Vynulovanie umožní vybrať ten istý súbor znova.
+		e.target.value = '';
 		if (!subor) return;
-		// Objekt-URL: obrázok sa číta priamo zo súboru na disku, nič nejde na sieť.
-		const url = URL.createObjectURL(subor);
+
+		let zdroj: Blob = subor;
+		if (jeHeic(subor)) {
+			setKonvertujem(true);
+			try {
+				// Knižnica sa sťahuje až pri prvom HEIC súbore, nie pri štarte appky.
+				const heic2any = (await import('heic2any')).default;
+				const vysledok = await heic2any({ blob: subor, toType: 'image/png' });
+				zdroj = Array.isArray(vysledok) ? vysledok[0] : vysledok;
+			} catch (chyba) {
+				console.error('HEIC konverzia zlyhala:', chyba);
+				alert('Tento HEIC súbor sa nepodarilo skonvertovať.');
+				return;
+			} finally {
+				setKonvertujem(false);
+			}
+		}
+
+		// Objekt-URL: obrázok sa číta priamo z pamäte prehliadača, nič nejde na sieť.
+		const url = URL.createObjectURL(zdroj);
 		const img = new window.Image();
 		img.onload = () => {
 			URL.revokeObjectURL(url);
@@ -64,8 +91,6 @@ export default function Editor() {
 			vycentruj(img);
 		};
 		img.src = url;
-		// Vynulovanie umožní vybrať ten istý súbor znova.
-		e.target.value = '';
 	};
 
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
@@ -99,9 +124,10 @@ export default function Editor() {
 				<button
 					type="button"
 					onClick={() => suborInputRef.current?.click()}
-					className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+					disabled={konvertujem}
+					className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-60"
 				>
-					Otvoriť obrázok
+					{konvertujem ? 'Konvertujem…' : 'Otvoriť obrázok'}
 				</button>
 				<input
 					ref={suborInputRef}
