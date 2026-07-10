@@ -5,6 +5,15 @@ Jednoduchý editor obrázkov, ktorý beží celý v prehliadači. Tvoje obrázky
 
 > Návod dopĺňame priebežne — popisuje len to, čo už je hotové.
 
+## Otvorenie obrázka
+
+Klikni hore na zelené tlačidlo **Otvoriť obrázok** a vyber súbor zo svojho
+počítača. Podporované formáty: **PNG, JPG, WebP, GIF, BMP** (fotky z iPhonu
+vo formáte HEIC zatiaľ nie — pribudnú čoskoro).
+
+Obrázok sa zobrazí v strede plátna, prispôsobený veľkosti okna. Nič sa
+nikam nenahráva — súbor zostáva len v tvojom prehliadači.
+
 ## Plátno
 
 Po otvorení appky vidíš plátno so **sivo-bielou šachovnicou**. Šachovnica
