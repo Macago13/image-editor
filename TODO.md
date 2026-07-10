@@ -23,7 +23,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 - [x] Nahratie obrázka na plátno (PNG, JPG, WebP, GIF, BMP)
 - [x] Import HEIC z iPhonu (cez `heic2any`, so správnou orientáciou)
 - [x] Import SVG (rasterizácia — appka sa opýta na veľkosť)
-- [ ] Undo / redo história
+- [x] Undo / redo história
 
 ➡️ **Commit:** `fáza 1: plátno, import obrázkov, undo/redo`
 

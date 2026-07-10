@@ -52,12 +52,18 @@ type CakajuceSvg = { subor: File; pomer: number };
 const MIN_SIRKA = 8;
 const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
 
+// Koľko krokov späť si pamätáme — každý stav drží celý obrázok v pamäti.
+const MAX_HISTORIA = 30;
+
 export default function Editor() {
 	const obalRef = useRef<HTMLDivElement>(null);
 	const stageRef = useRef<Konva.Stage>(null);
 	const suborInputRef = useRef<HTMLInputElement>(null);
 	const [rozmer, setRozmer] = useState({ width: 0, height: 0 });
-	const [obrazok, setObrazok] = useState<Vykreslitelne | null>(null);
+	// História stavov plátna: historia[krok] je to, čo práve vidíš.
+	const [historia, setHistoria] = useState<Vykreslitelne[]>([]);
+	const [krok, setKrok] = useState(-1);
+	const obrazok = krok >= 0 ? historia[krok] : null;
 	const [konvertujem, setKonvertujem] = useState(false);
 	const [cakajuceSvg, setCakajuceSvg] = useState<CakajuceSvg | null>(null);
 	const [svgSirka, setSvgSirka] = useState(1024);
@@ -92,13 +98,55 @@ export default function Editor() {
 		});
 	};
 
+	// Pridá nový stav na koniec histórie. Ak sme boli o pár krokov späť,
+	// „budúcnosť" za aktuálnym krokom sa zahodí (ako vo Worde).
+	const pridajDoHistorie = (novy: Vykreslitelne) => {
+		setHistoria((stara) => {
+			const orezana = stara.slice(0, krok + 1);
+			orezana.push(novy);
+			// Pri prekročení limitu zabudneme najstarší stav.
+			const nadLimit = orezana.length - MAX_HISTORIA;
+			return nadLimit > 0 ? orezana.slice(nadLimit) : orezana;
+		});
+		setKrok((k) => Math.min(k + 1, MAX_HISTORIA - 1));
+	};
+
+	const mozeSpat = krok > 0;
+	const mozeZnova = krok < historia.length - 1;
+	const spat = () => {
+		if (mozeSpat) setKrok(krok - 1);
+	};
+	const znova = () => {
+		if (mozeZnova) setKrok(krok + 1);
+	};
+
+	// Klávesové skratky: Ctrl+Z (späť), Ctrl+Y alebo Ctrl+Shift+Z (znova).
+	useEffect(() => {
+		const naKlavesu = (e: KeyboardEvent) => {
+			if (!e.ctrlKey && !e.metaKey) return;
+			const k = e.key.toLowerCase();
+			if (k === 'z' && e.shiftKey) {
+				e.preventDefault();
+				znova();
+			} else if (k === 'z') {
+				e.preventDefault();
+				spat();
+			} else if (k === 'y') {
+				e.preventDefault();
+				znova();
+			}
+		};
+		window.addEventListener('keydown', naKlavesu);
+		return () => window.removeEventListener('keydown', naKlavesu);
+	});
+
 	// Načíta blob ako <img> element a položí ho na plátno.
 	const polozNaPlatno = (zdroj: Blob) => {
 		const url = URL.createObjectURL(zdroj);
 		const img = new window.Image();
 		img.onload = () => {
 			URL.revokeObjectURL(url);
-			setObrazok(img);
+			pridajDoHistorie(img);
 			vycentruj(img);
 		};
 		img.src = url;
@@ -153,7 +201,7 @@ export default function Editor() {
 			canvas.width = sirka;
 			canvas.height = vyska;
 			canvas.getContext('2d')?.drawImage(img, 0, 0, sirka, vyska);
-			setObrazok(canvas);
+			pridajDoHistorie(canvas);
 			vycentruj(canvas);
 		};
 		img.onerror = () => {
@@ -211,6 +259,26 @@ export default function Editor() {
 					onChange={otvorSubor}
 					className="hidden"
 				/>
+				<div className="ml-auto flex gap-1">
+					<button
+						type="button"
+						onClick={spat}
+						disabled={!mozeSpat}
+						title="Späť (Ctrl+Z)"
+						className="rounded-md px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+					>
+						↶ Späť
+					</button>
+					<button
+						type="button"
+						onClick={znova}
+						disabled={!mozeZnova}
+						title="Znova (Ctrl+Y)"
+						className="rounded-md px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40"
+					>
+						↷ Znova
+					</button>
+				</div>
 			</header>
 
 			<main ref={obalRef} className="relative flex-1 overflow-hidden" style={sachovnica}>

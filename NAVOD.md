@@ -22,6 +22,16 @@ Otvoriť môžeš aj **SVG**. Keďže SVG nemá pevnú veľkosť v pixeloch, app
 Predvyplní rozumný návrh — pre logá pokojne zvoľ viac, zmenšiť sa dá vždy,
 ale zväčšovanie už kvalite nepomôže.
 
+## Krok späť a znova
+
+Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo
+použi klávesy:
+
+- **Ctrl + Z** — krok späť,
+- **Ctrl + Y** (alebo Ctrl + Shift + Z) — krok znova dopredu.
+
+Appka si pamätá posledných 30 krokov.
+
 ## Plátno
 
 Po otvorení appky vidíš plátno so **sivo-bielou šachovnicou**. Šachovnica
