@@ -22,6 +22,24 @@ Otvoriť môžeš aj **SVG**. Keďže SVG nemá pevnú veľkosť v pixeloch, app
 Predvyplní rozumný návrh — pre logá pokojne zvoľ viac, zmenšiť sa dá vždy,
 ale zväčšovanie už kvalite nepomôže.
 
+## Nástroje
+
+V hlavičke je prepínač nástrojov. Aktívny nástroj svieti nazeleno.
+
+### ✋ Posun
+
+Základný režim — ťahaním myši posúvaš plátno (viď „Plátno" nižšie).
+
+### 💧 Kvapkadlo
+
+Vyberie farbu priamo z obrázka. Zapni kvapkadlo, klikni na miesto
+v obrázku — a farba toho pixelu sa objaví vo štvorčeku v hlavičke aj
+s presným kódom (napr. `#34d399`). Túto farbu neskôr použijú ďalšie
+nástroje (ceruzka, odstránenie podľa farby).
+
+Tip: keď potrebuješ trafiť presný pixel, najprv si miesto priblíž
+kolieskom myši.
+
 ## Krok späť a znova
 
 Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo

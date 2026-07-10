@@ -29,7 +29,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 ## Fáza 2 — Retušovacie nástroje
 
-- [ ] Kvapkadlo (výber farby priamo z obrázka)
+- [x] Kvapkadlo (výber farby priamo z obrázka)
 - [ ] Guma s nastaviteľnou veľkosťou
 - [ ] Tolerančný režim gumy (maže len farbu, na ktorú klikneš, nezasahuje okolie)
 - [ ] Ceruzka na dokreslenie (výber farby a veľkosti)

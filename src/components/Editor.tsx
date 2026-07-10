@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CSSProperties } from 'react';
 import { Stage, Layer, Image as KonvaImage, Text } from 'react-konva';
 import type Konva from 'konva';
@@ -55,6 +55,10 @@ const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
 // Koľko krokov späť si pamätáme — každý stav drží celý obrázok v pamäti.
 const MAX_HISTORIA = 30;
 
+type Nastroj = 'posun' | 'kvapkadlo';
+
+const doHex = (n: number) => n.toString(16).padStart(2, '0');
+
 export default function Editor() {
 	const obalRef = useRef<HTMLDivElement>(null);
 	const stageRef = useRef<Konva.Stage>(null);
@@ -67,6 +71,20 @@ export default function Editor() {
 	const [konvertujem, setKonvertujem] = useState(false);
 	const [cakajuceSvg, setCakajuceSvg] = useState<CakajuceSvg | null>(null);
 	const [svgSirka, setSvgSirka] = useState(1024);
+	const [nastroj, setNastroj] = useState<Nastroj>('posun');
+	const [farba, setFarba] = useState('#000000');
+
+	// Neviditeľný canvas s pixelmi aktuálneho obrázka — z neho číta kvapkadlo.
+	// Vyrába sa nanovo len pri zmene obrázka, nie pri každom kliku.
+	const pixelCtx = useMemo(() => {
+		if (!obrazok) return null;
+		const c = document.createElement('canvas');
+		c.width = obrazok.width;
+		c.height = obrazok.height;
+		const ctx = c.getContext('2d', { willReadFrequently: true });
+		ctx?.drawImage(obrazok, 0, 0);
+		return ctx;
+	}, [obrazok]);
 
 	// Plátno musí presne vyplniť svoj obal — sledujeme jeho veľkosť
 	// aj pri zmene veľkosti okna.
@@ -212,6 +230,23 @@ export default function Editor() {
 		setCakajuceSvg(null);
 	};
 
+	// Klik kvapkadlom: prepočíta pozíciu kurzora na pixel obrázka
+	// (odčíta posun plátna, vydelí zoomom) a prečíta jeho farbu.
+	const priKliknuti = () => {
+		if (nastroj !== 'kvapkadlo' || !obrazok || !pixelCtx) return;
+		const stage = stageRef.current;
+		const kurzor = stage?.getPointerPosition();
+		if (!stage || !kurzor) return;
+
+		const x = Math.floor((kurzor.x - stage.x()) / stage.scaleX());
+		const y = Math.floor((kurzor.y - stage.y()) / stage.scaleY());
+		if (x < 0 || y < 0 || x >= obrazok.width || y >= obrazok.height) return;
+
+		const [r, g, b, alfa] = pixelCtx.getImageData(x, y, 1, 1).data;
+		if (alfa === 0) return; // priehľadné miesto — nie je z čoho brať farbu
+		setFarba(`#${doHex(r)}${doHex(g)}${doHex(b)}`);
+	};
+
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
 	const priZoome = (e: Konva.KonvaEventObject<WheelEvent>) => {
 		e.evt.preventDefault();
@@ -259,6 +294,39 @@ export default function Editor() {
 					onChange={otvorSubor}
 					className="hidden"
 				/>
+				<div className="flex gap-1 rounded-md bg-slate-900 p-1">
+					{(
+						[
+							['posun', '✋ Posun'],
+							['kvapkadlo', '💧 Kvapkadlo'],
+						] as const
+					).map(([id, popis]) => (
+						<button
+							key={id}
+							type="button"
+							onClick={() => setNastroj(id)}
+							className={`rounded px-3 py-1 text-sm ${
+								nastroj === id
+									? 'bg-emerald-600 text-white'
+									: 'text-slate-300 hover:bg-slate-700'
+							}`}
+						>
+							{popis}
+						</button>
+					))}
+				</div>
+
+				<div
+					className="flex items-center gap-2 text-sm text-slate-300"
+					title="Aktuálna farba (vyberá kvapkadlo)"
+				>
+					<span
+						className="h-6 w-6 rounded border border-slate-500"
+						style={{ backgroundColor: farba }}
+					/>
+					<code>{farba}</code>
+				</div>
+
 				<div className="ml-auto flex gap-1">
 					<button
 						type="button"
@@ -281,13 +349,21 @@ export default function Editor() {
 				</div>
 			</header>
 
-			<main ref={obalRef} className="relative flex-1 overflow-hidden" style={sachovnica}>
+			<main
+				ref={obalRef}
+				className={`relative flex-1 overflow-hidden ${
+					nastroj === 'kvapkadlo' ? 'cursor-crosshair' : 'cursor-grab'
+				}`}
+				style={sachovnica}
+			>
 				<Stage
 					ref={stageRef}
 					width={rozmer.width}
 					height={rozmer.height}
-					draggable
+					draggable={nastroj === 'posun'}
 					onWheel={priZoome}
+					onClick={priKliknuti}
+					onTap={priKliknuti}
 				>
 					<Layer>
 						{obrazok ? (
