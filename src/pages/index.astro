@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import Editor from '../components/Editor.tsx';
 ---
 
 <html lang="sk">
@@ -11,10 +12,7 @@ import '../styles/global.css';
 		<meta name="generator" content={Astro.generator} />
 		<title>Editor obrázkov</title>
 	</head>
-	<body class="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center">
-		<div class="text-center">
-			<h1 class="text-4xl font-bold text-emerald-400">Editor obrázkov</h1>
-			<p class="mt-4 text-slate-400">Astro + React + Tailwind fungujú 🎉</p>
-		</div>
+	<body class="min-h-screen bg-slate-900 text-slate-100">
+		<Editor client:only="react" />
 	</body>
 </html>
