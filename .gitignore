@@ -1,0 +1,29 @@
+# === Systémové súbory (Windows) ===
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# === Systémové súbory (macOS) — pre prípad iného počítača ===
+.DS_Store
+
+# === Citlivé údaje (NIKDY necommitovať!) ===
+.env
+.env.local
+
+# === Editor (voliteľné — riadok zmaž, ak chceš zdieľať nastavenia VS Code) ===
+.vscode/
+
+# === Závislosti a build ===
+node_modules/
+dist/
+build/
+.astro/
+
+# === Hosting (Vercel) ===
+.vercel/
+
+# === Dočasné súbory ===
+*.log
+*.tmp
