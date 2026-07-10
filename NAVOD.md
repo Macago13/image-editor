@@ -15,6 +15,13 @@ a na tlačidle svieti „Konvertujem…".
 Obrázok sa zobrazí v strede plátna, prispôsobený veľkosti okna. Nič sa
 nikam nenahráva — súbor zostáva len v tvojom prehliadači.
 
+### Vloženie SVG (logá)
+
+Otvoriť môžeš aj **SVG**. Keďže SVG nemá pevnú veľkosť v pixeloch, appka sa
+ťa najprv opýta, **v akej šírke** ho má vykresliť (výšku dopočíta sama).
+Predvyplní rozumný návrh — pre logá pokojne zvoľ viac, zmenšiť sa dá vždy,
+ale zväčšovanie už kvalite nepomôže.
+
 ## Plátno
 
 Po otvorení appky vidíš plátno so **sivo-bielou šachovnicou**. Šachovnica

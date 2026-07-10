@@ -11,23 +11,56 @@ const sachovnica: CSSProperties = {
 
 const ZOOM_KROK = 1.1;
 
-// Natívne formáty + HEIC (ten konvertujeme cez heic2any).
-// Prípony .heic/.heif sú v zozname aj samostatne — Windows im často nedáva MIME typ.
+// Obrázok na plátne môže byť aj canvas (výsledok rasterizácie SVG).
+type Vykreslitelne = HTMLImageElement | HTMLCanvasElement;
+
+// Natívne formáty + HEIC (konvertujeme cez heic2any) + SVG (rasterizujeme).
+// Prípony sú v zozname aj samostatne — Windows im často nedáva MIME typ.
 const PODPOROVANE_FORMATY =
-	'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/heic,image/heif,.heic,.heif';
+	'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,.svg,image/heic,image/heif,.heic,.heif';
 
 const jeHeic = (subor: File) =>
 	subor.type === 'image/heic' ||
 	subor.type === 'image/heif' ||
 	/\.hei[cf]$/i.test(subor.name);
 
+const jeSvg = (subor: File) =>
+	subor.type === 'image/svg+xml' || /\.svg$/i.test(subor.name);
+
+// Prečíta zo SVG jeho prirodzenú šírku a pomer strán (šírka / výška).
+// Skúša atribúty width/height, potom viewBox; keď nič, predpokladá štvorec.
+function rozmerySvg(text: string): { sirka: number; pomer: number } {
+	const svg = new DOMParser()
+		.parseFromString(text, 'image/svg+xml')
+		.querySelector('svg');
+	const w = parseFloat(svg?.getAttribute('width') ?? '');
+	const h = parseFloat(svg?.getAttribute('height') ?? '');
+	if (w > 0 && h > 0) return { sirka: Math.round(w), pomer: w / h };
+
+	const viewBox = svg?.getAttribute('viewBox')?.trim().split(/[\s,]+/);
+	if (viewBox?.length === 4) {
+		const vw = parseFloat(viewBox[2]);
+		const vh = parseFloat(viewBox[3]);
+		if (vw > 0 && vh > 0) return { sirka: Math.round(vw), pomer: vw / vh };
+	}
+	return { sirka: 1024, pomer: 1 };
+}
+
+// SVG čakajúce v dialógu na výber rozlíšenia.
+type CakajuceSvg = { subor: File; pomer: number };
+
+const MIN_SIRKA = 8;
+const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
+
 export default function Editor() {
 	const obalRef = useRef<HTMLDivElement>(null);
 	const stageRef = useRef<Konva.Stage>(null);
 	const suborInputRef = useRef<HTMLInputElement>(null);
 	const [rozmer, setRozmer] = useState({ width: 0, height: 0 });
-	const [obrazok, setObrazok] = useState<HTMLImageElement | null>(null);
+	const [obrazok, setObrazok] = useState<Vykreslitelne | null>(null);
 	const [konvertujem, setKonvertujem] = useState(false);
+	const [cakajuceSvg, setCakajuceSvg] = useState<CakajuceSvg | null>(null);
+	const [svgSirka, setSvgSirka] = useState(1024);
 
 	// Plátno musí presne vyplniť svoj obal — sledujeme jeho veľkosť
 	// aj pri zmene veľkosti okna.
@@ -44,7 +77,7 @@ export default function Editor() {
 
 	// Nastaví zoom a pozíciu tak, aby bol celý obrázok v strede plátna
 	// s malým okrajom.
-	const vycentruj = (img: HTMLImageElement) => {
+	const vycentruj = (img: Vykreslitelne) => {
 		const stage = stageRef.current;
 		if (!stage) return;
 		const mierka = Math.min(
@@ -59,11 +92,31 @@ export default function Editor() {
 		});
 	};
 
+	// Načíta blob ako <img> element a položí ho na plátno.
+	const polozNaPlatno = (zdroj: Blob) => {
+		const url = URL.createObjectURL(zdroj);
+		const img = new window.Image();
+		img.onload = () => {
+			URL.revokeObjectURL(url);
+			setObrazok(img);
+			vycentruj(img);
+		};
+		img.src = url;
+	};
+
 	const otvorSubor = async (e: ChangeEvent<HTMLInputElement>) => {
 		const subor = e.target.files?.[0];
 		// Vynulovanie umožní vybrať ten istý súbor znova.
 		e.target.value = '';
 		if (!subor) return;
+
+		// SVG nejde rovno na plátno — najprv sa v dialógu vyberie rozlíšenie.
+		if (jeSvg(subor)) {
+			const { sirka, pomer } = rozmerySvg(await subor.text());
+			setSvgSirka(Math.min(MAX_SIRKA, Math.max(MIN_SIRKA, sirka)));
+			setCakajuceSvg({ subor, pomer });
+			return;
+		}
 
 		let zdroj: Blob = subor;
 		if (jeHeic(subor)) {
@@ -82,15 +135,33 @@ export default function Editor() {
 			}
 		}
 
-		// Objekt-URL: obrázok sa číta priamo z pamäte prehliadača, nič nejde na sieť.
-		const url = URL.createObjectURL(zdroj);
+		polozNaPlatno(zdroj);
+	};
+
+	// Vykreslí čakajúce SVG do canvasu vo zvolenom rozlíšení (rasterizácia).
+	const vlozSvg = () => {
+		if (!cakajuceSvg) return;
+		const sirka = Math.min(MAX_SIRKA, Math.max(MIN_SIRKA, Math.round(svgSirka)));
+		const vyska = Math.max(1, Math.round(sirka / cakajuceSvg.pomer));
+
+		const blob = new Blob([cakajuceSvg.subor], { type: 'image/svg+xml' });
+		const url = URL.createObjectURL(blob);
 		const img = new window.Image();
 		img.onload = () => {
 			URL.revokeObjectURL(url);
-			setObrazok(img);
-			vycentruj(img);
+			const canvas = document.createElement('canvas');
+			canvas.width = sirka;
+			canvas.height = vyska;
+			canvas.getContext('2d')?.drawImage(img, 0, 0, sirka, vyska);
+			setObrazok(canvas);
+			vycentruj(canvas);
+		};
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			alert('Toto SVG sa nepodarilo vykresliť.');
 		};
 		img.src = url;
+		setCakajuceSvg(null);
 	};
 
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
@@ -117,6 +188,10 @@ export default function Editor() {
 		});
 	};
 
+	const svgVyska = cakajuceSvg
+		? Math.max(1, Math.round(svgSirka / cakajuceSvg.pomer))
+		: 0;
+
 	return (
 		<div className="flex h-screen flex-col">
 			<header className="flex items-center gap-4 border-b border-slate-700 bg-slate-800 px-4 py-3">
@@ -138,7 +213,7 @@ export default function Editor() {
 				/>
 			</header>
 
-			<main ref={obalRef} className="flex-1 overflow-hidden" style={sachovnica}>
+			<main ref={obalRef} className="relative flex-1 overflow-hidden" style={sachovnica}>
 				<Stage
 					ref={stageRef}
 					width={rozmer.width}
@@ -162,6 +237,48 @@ export default function Editor() {
 						)}
 					</Layer>
 				</Stage>
+
+				{cakajuceSvg && (
+					<div className="absolute inset-0 flex items-center justify-center bg-black/50">
+						<div className="w-80 rounded-lg bg-slate-800 p-5 shadow-xl">
+							<h2 className="font-semibold text-slate-100">Vloženie SVG</h2>
+							<p className="mt-2 text-sm text-slate-400">
+								SVG nemá pevné pixely — vyber, v akom rozlíšení sa má vykresliť.
+								Pre logá voľ radšej viac, zmenšiť sa dá vždy.
+							</p>
+							<label className="mt-4 block text-sm text-slate-300">
+								Šírka v pixeloch
+								<input
+									type="number"
+									min={MIN_SIRKA}
+									max={MAX_SIRKA}
+									value={svgSirka}
+									onChange={(e) => setSvgSirka(Number(e.target.value))}
+									className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
+								/>
+							</label>
+							<p className="mt-2 text-sm text-slate-400">
+								Výška sa dopočíta: <strong>{svgVyska}px</strong>
+							</p>
+							<div className="mt-5 flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => setCakajuceSvg(null)}
+									className="rounded-md px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
+								>
+									Zrušiť
+								</button>
+								<button
+									type="button"
+									onClick={vlozSvg}
+									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+								>
+									Vložiť
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
 			</main>
 		</div>
 	);
