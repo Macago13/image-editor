@@ -9,9 +9,9 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 ## Fáza 0 — Príprava projektu
 
-- [ ] Založiť Astro projekt s Reactom a Tailwindom, rozbehnúť prázdnu stránku
+- [x] Založiť Astro projekt s Reactom a Tailwindom, rozbehnúť prázdnu stránku
 - [ ] Vytvoriť prázdny React komponent `Editor` (`client:only`) na hlavnej stránke
-- [ ] Nastaviť Git a spraviť prvý push na GitHub *(nižšie je návod)*
+- [x] Nastaviť Git a spraviť prvý push na GitHub *(nižšie je návod)*
 - [ ] Skopírovať `CLAUDE.md` a `plan_image_editor_v1.md` do priečinka projektu
 
 ➡️ **Commit:** `init: prázdny Astro projekt s Reactom a Tailwindom`
