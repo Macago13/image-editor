@@ -18,8 +18,8 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 ## Fáza 1 — Plátno + import
 
-- [ ] Plátno cez Konva so zoomom a posunom (pan)
-- [ ] Priehľadnostná šachovnica na pozadí (aby bolo vidno priehľadné časti)
+- [x] Plátno cez Konva so zoomom a posunom (pan)
+- [x] Priehľadnostná šachovnica na pozadí (aby bolo vidno priehľadné časti)
 - [ ] Nahratie obrázka na plátno (PNG, JPG, WebP, GIF, BMP)
 - [ ] Import HEIC z iPhonu (cez `heic2any`, so správnou orientáciou)
 - [ ] Import SVG (rasterizácia — appka sa opýta na veľkosť)
