@@ -59,6 +59,18 @@ Posuvník **Tolerancia** určuje, aké odtiene sa ešte počítajú ako „tá i
 farba": 0 = len úplne presná farba, väčšie číslo = aj podobné odtiene.
 Začni okolo 30 a dolaď podľa výsledku (Ctrl + Z je kamarát).
 
+### 🎨 Výber farby
+
+Štvorček s farbou v hlavičke sa dá **rozkliknúť**. V paneli nájdeš:
+
+- **paletu** základných farieb — stačí kliknúť,
+- **Hex kód** — napíš presný kód farby (napr. `#ff6600` alebo len
+  `ff6600`) a stlač Enter; hodí sa, keď máš presné firemné farby,
+- **Iná farba** — otvorí dúhový výber, kde farbu namiešaš myšou.
+
+Panel zavrieš kliknutím kamkoľvek mimo neho. A samozrejme stále platí,
+že farbu vieš nasať aj kvapkadlom priamo z obrázka.
+
 ### ✏️ Ceruzka
 
 Dokreslí, čo chýba — kreslí **aktuálnou farbou** (tá vo štvorčeku

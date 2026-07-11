@@ -61,6 +61,14 @@ type Bod = { x: number; y: number };
 
 const doHex = (n: number) => n.toString(16).padStart(2, '0');
 
+// Základná paleta — rýchly výber bežných farieb.
+const PALETA = [
+	'#000000', '#475569', '#94a3b8', '#ffffff',
+	'#ef4444', '#f97316', '#facc15', '#22c55e',
+	'#10b981', '#06b6d4', '#3b82f6', '#8b5cf6',
+	'#ec4899', '#92400e', '#f8fafc', '#0f172a',
+];
+
 export default function Editor() {
 	const obalRef = useRef<HTMLDivElement>(null);
 	const stageRef = useRef<Konva.Stage>(null);
@@ -75,6 +83,20 @@ export default function Editor() {
 	const [svgSirka, setSvgSirka] = useState(1024);
 	const [nastroj, setNastroj] = useState<Nastroj>('posun');
 	const [farba, setFarba] = useState('#000000');
+	const [paletaOtvorena, setPaletaOtvorena] = useState(false);
+	// Text v hex políčku — do „farba" sa prepíše až po potvrdení platnej hodnoty.
+	const [hexVstup, setHexVstup] = useState('#000000');
+
+	// Keď sa farba zmení inde (kvapkadlo, paleta, picker), hex políčko sa zladí.
+	useEffect(() => setHexVstup(farba), [farba]);
+
+	// Prijme „#ff6600", „ff6600" aj skrátené „f60"; neplatný vstup vráti späť.
+	const potvrdHex = () => {
+		let v = hexVstup.trim().replace(/^#/, '');
+		if (/^[0-9a-f]{3}$/i.test(v)) v = [...v].map((z) => z + z).join('');
+		if (/^[0-9a-f]{6}$/i.test(v)) setFarba(`#${v.toLowerCase()}`);
+		else setHexVstup(farba);
+	};
 	const [gumaVelkost, setGumaVelkost] = useState(40);
 	const [ceruzkaVelkost, setCeruzkaVelkost] = useState(12);
 	// Tolerančný režim gumy: maže len farbu podobnú tej, na ktorej sa ťah začal.
@@ -558,15 +580,65 @@ export default function Editor() {
 					</label>
 				)}
 
-				<div
-					className="flex items-center gap-2 text-sm text-slate-300"
-					title="Aktuálna farba (vyberá kvapkadlo aj kreslí ceruzka)"
-				>
-					<span
-						className="h-6 w-6 rounded border border-slate-500"
-						style={{ backgroundColor: farba }}
-					/>
-					<code>{farba}</code>
+				<div className="relative">
+					<button
+						type="button"
+						onClick={() => setPaletaOtvorena((o) => !o)}
+						title="Aktuálna farba — klikni a vyber inú"
+						className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-slate-300 hover:bg-slate-700"
+					>
+						<span
+							className="h-6 w-6 rounded border border-slate-500"
+							style={{ backgroundColor: farba }}
+						/>
+						<code>{farba}</code>
+					</button>
+
+					{paletaOtvorena && (
+						<>
+							{/* Neviditeľná vrstva — klik mimo panela ho zavrie. */}
+							<div
+								className="fixed inset-0 z-10"
+								onClick={() => setPaletaOtvorena(false)}
+							/>
+							<div className="absolute left-0 top-full z-20 mt-2 w-60 rounded-lg border border-slate-700 bg-slate-800 p-3 shadow-xl">
+								<div className="grid grid-cols-8 gap-1.5">
+									{PALETA.map((f) => (
+										<button
+											key={f}
+											type="button"
+											onClick={() => setFarba(f)}
+											title={f}
+											className={`h-6 w-6 rounded border-2 ${
+												farba === f ? 'border-emerald-400' : 'border-slate-600'
+											}`}
+											style={{ backgroundColor: f }}
+										/>
+									))}
+								</div>
+								<label className="mt-3 flex items-center justify-between gap-2 text-sm text-slate-300">
+									Hex kód
+									<input
+										value={hexVstup}
+										onChange={(e) => setHexVstup(e.target.value)}
+										onBlur={potvrdHex}
+										onKeyDown={(e) => e.key === 'Enter' && potvrdHex()}
+										spellCheck={false}
+										className="w-28 rounded-md border border-slate-600 bg-slate-900 px-2 py-1 font-mono text-sm text-slate-100"
+									/>
+								</label>
+								<label className="mt-2 flex items-center justify-between gap-2 text-sm text-slate-300">
+									Iná farba
+									<input
+										type="color"
+										value={farba}
+										onChange={(e) => setFarba(e.target.value)}
+										className="h-8 w-28 cursor-pointer rounded bg-transparent"
+									/>
+								</label>
+							</div>
+						</>
+					)}
 				</div>
 
 				<div className="ml-auto flex gap-1">
