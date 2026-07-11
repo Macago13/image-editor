@@ -80,6 +80,13 @@ Typický postup: kvapkadlom klikni na farbu v obrázku, ktorú chceš
 doplniť, prepni na ceruzku a dokresli. Krúžok pri kurzore ukazuje
 stopu aj farbu, ktorou budeš kresliť.
 
+## Porovnanie pred/po
+
+Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**
+vpravo hore (alebo klávesu **P**) — plátno ukáže pôvodný obrázok tak, ako
+si ho otvoril, a hore svieti štítok „Pôvodný obrázok". Pusti — a si späť
+v upravenej verzii. Nič sa tým nemení, je to len rýchly pohľad.
+
 ## Krok späť a znova
 
 Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo

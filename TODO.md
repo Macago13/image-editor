@@ -34,7 +34,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 - [x] Tolerančný režim gumy (maže len farbu, na ktorú klikneš, nezasahuje okolie)
 - [x] Ceruzka na dokreslenie (výber farby a veľkosti)
 - [x] Farebná paleta + presné zadanie hex kódu
-- [ ] Náhľad pred/po (rýchle prepnutie originál ↔ upravené)
+- [x] Náhľad pred/po (rýchle prepnutie originál ↔ upravené)
 
 ➡️ **Commit:** `fáza 2: guma, ceruzka, kvapkadlo, paleta, náhľad pred/po`
 

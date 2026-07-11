@@ -113,9 +113,14 @@ export default function Editor() {
 	const poslednyBodRef = useRef<Bod | null>(null);
 	// Pozícia kurzora v súradniciach obrázka — na krúžok ukazujúci veľkosť gumy.
 	const [kurzor, setKurzor] = useState<Bod | null>(null);
+	// Originál na porovnanie pred/po — obrázok tak, ako bol otvorený.
+	const [original, setOriginal] = useState<Vykreslitelne | null>(null);
+	const [ukazujemPovodny, setUkazujemPovodny] = useState(false);
 
-	// Na plátne sa zobrazuje pracovná kópia (počas ťahu), inak aktuálny krok histórie.
-	const zobrazeny = pracovny ?? obrazok;
+	// Na plátne sa zobrazuje: originál (kým držíš Pred/Po), inak pracovná
+	// kópia (počas ťahu), inak aktuálny krok histórie.
+	const zobrazeny =
+		ukazujemPovodny && original ? original : (pracovny ?? obrazok);
 
 	// Guma a ceruzka majú každá svoju veľkosť stopy.
 	const kresliaci = nastroj === 'guma' || nastroj === 'ceruzka';
@@ -205,6 +210,25 @@ export default function Editor() {
 		return () => window.removeEventListener('keydown', naKlavesu);
 	});
 
+	// Podržanie klávesy P ukazuje pôvodný obrázok (pred/po).
+	useEffect(() => {
+		const stlacene = (e: KeyboardEvent) => {
+			if (e.key.toLowerCase() !== 'p' || e.ctrlKey || e.metaKey || e.altKey) return;
+			// Pri písaní do políčka (napr. hex kód) klávesa P nič neprepína.
+			if ((e.target as HTMLElement).tagName === 'INPUT') return;
+			setUkazujemPovodny(true);
+		};
+		const pustene = (e: KeyboardEvent) => {
+			if (e.key.toLowerCase() === 'p') setUkazujemPovodny(false);
+		};
+		window.addEventListener('keydown', stlacene);
+		window.addEventListener('keyup', pustene);
+		return () => {
+			window.removeEventListener('keydown', stlacene);
+			window.removeEventListener('keyup', pustene);
+		};
+	}, []);
+
 	// Načíta blob ako <img> element a položí ho na plátno.
 	const polozNaPlatno = (zdroj: Blob) => {
 		const url = URL.createObjectURL(zdroj);
@@ -212,6 +236,7 @@ export default function Editor() {
 		img.onload = () => {
 			URL.revokeObjectURL(url);
 			pridajDoHistorie(img);
+			setOriginal(img);
 			vycentruj(img);
 		};
 		img.src = url;
@@ -267,6 +292,7 @@ export default function Editor() {
 			canvas.height = vyska;
 			canvas.getContext('2d')?.drawImage(img, 0, 0, sirka, vyska);
 			pridajDoHistorie(canvas);
+			setOriginal(canvas);
 			vycentruj(canvas);
 		};
 		img.onerror = () => {
@@ -394,7 +420,9 @@ export default function Editor() {
 
 	// Stlačenie myši s gumou/ceruzkou: vyrobí pracovnú kópiu a spraví prvú bodku.
 	const zacniTah = () => {
-		if (!kresliaci || !obrazok) return;
+		// Počas náhľadu pred/po sa nekreslí — videl by si originál, ale
+		// menil upravenú verziu.
+		if (!kresliaci || !obrazok || ukazujemPovodny) return;
 		const kopia = document.createElement('canvas');
 		kopia.width = obrazok.width;
 		kopia.height = obrazok.height;
@@ -644,6 +672,21 @@ export default function Editor() {
 				<div className="ml-auto flex gap-1">
 					<button
 						type="button"
+						onMouseDown={() => setUkazujemPovodny(true)}
+						onMouseUp={() => setUkazujemPovodny(false)}
+						onMouseLeave={() => setUkazujemPovodny(false)}
+						disabled={!original}
+						title="Podrž — ukáže pôvodný obrázok (alebo drž klávesu P)"
+						className={`rounded-md px-3 py-1.5 text-sm disabled:opacity-40 ${
+							ukazujemPovodny
+								? 'bg-amber-500 text-slate-900'
+								: 'text-slate-200 hover:bg-slate-700'
+						}`}
+					>
+						👁 Pred/Po
+					</button>
+					<button
+						type="button"
 						onClick={spat}
 						disabled={!mozeSpat}
 						title="Späť (Ctrl+Z)"
@@ -725,6 +768,12 @@ export default function Editor() {
 						)}
 					</Layer>
 				</Stage>
+
+				{ukazujemPovodny && (
+					<div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-amber-500 px-4 py-1 text-sm font-medium text-slate-900 shadow">
+						Pôvodný obrázok
+					</div>
+				)}
 
 				{cakajuceSvg && (
 					<div className="absolute inset-0 flex items-center justify-center bg-black/50">
