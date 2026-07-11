@@ -80,6 +80,24 @@ Typický postup: kvapkadlom klikni na farbu v obrázku, ktorú chceš
 doplniť, prepni na ceruzku a dokresli. Krúžok pri kurzore ukazuje
 stopu aj farbu, ktorou budeš kresliť.
 
+## ✨ Odstránenie pozadia
+
+Otvor obrázok a klikni na fialové tlačidlo **Odstrániť pozadie**. AI nájde
+hlavný objekt (osobu, produkt, zviera…) a pozadie spraví priehľadným —
+uvidíš cez neho šachovnicu.
+
+Dobré vedieť:
+
+- **Pri úplne prvom použití** sa sťahuje AI model (niekoľko desiatok MB) —
+  panel ukazuje priebeh. Ďalšie použitia sú už rýchle, model zostáva
+  uložený v prehliadači.
+- Samotná fotka **nikam neodchádza** — celý výpočet beží v tvojom
+  prehliadači, do internetu sa sťahuje len model.
+- Výsledok je bežný krok histórie: **Ctrl + Z** ho vráti, **👁 Pred/Po**
+  ho porovná s originálom.
+- Okraje potom doladíš gumou (na zvyšky pozadia) alebo ceruzkou
+  (na omylom zmazané časti).
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**

@@ -40,9 +40,9 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 ## Fáza 3 — Odstránenie pozadia
 
-- [ ] AI odstránenie pozadia (`@imgly/background-removal`) + progress indikátor
-- [ ] Nastaviť COOP/COEP hlavičky (nutné pre AI krok — viď CLAUDE.md)
-- [ ] Presunúť AI operáciu do Web Workera (nech nezamrzne UI)
+- [x] AI odstránenie pozadia (`@imgly/background-removal`) + progress indikátor
+- [x] Nastaviť COOP/COEP hlavičky (nutné pre AI krok — viď CLAUDE.md)
+- [x] Presunúť AI operáciu do Web Workera (nech nezamrzne UI — cez `proxyToWorker`)
 - [ ] Odstránenie podľa farby (color-to-alpha): kvapkadlo + tolerančný slider,
       plynulý prechod alfa na hranách
 

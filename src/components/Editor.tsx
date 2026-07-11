@@ -115,6 +115,11 @@ export default function Editor() {
 	const [kurzor, setKurzor] = useState<Bod | null>(null);
 	// Originál na porovnanie pred/po — obrázok tak, ako bol otvorený.
 	const [original, setOriginal] = useState<Vykreslitelne | null>(null);
+	// Priebeh AI odstraňovania pozadia; null = nebeží.
+	const [odstranovanie, setOdstranovanie] = useState<{
+		faza: string;
+		percenta: number | null;
+	} | null>(null);
 	const [ukazujemPovodny, setUkazujemPovodny] = useState(false);
 
 	// Na plátne sa zobrazuje: originál (kým držíš Pred/Po), inak pracovná
@@ -480,6 +485,56 @@ export default function Editor() {
 		}
 	};
 
+	// AI odstránenie pozadia. Celé beží v prehliadači: knižnica si pri prvom
+	// použití stiahne model (desiatky MB) a výpočet beží vo Web Workeri
+	// (proxyToWorker), takže UI nezamrzne. Fotka nikam neodchádza.
+	const odstranPozadie = async () => {
+		if (!obrazok || odstranovanie) return;
+		setOdstranovanie({ faza: 'Pripravujem…', percenta: null });
+		try {
+			const { removeBackground } = await import('@imgly/background-removal');
+
+			// Aktuálny stav plátna → PNG blob, ktorý knižnica zje.
+			const c = document.createElement('canvas');
+			c.width = obrazok.width;
+			c.height = obrazok.height;
+			c.getContext('2d')?.drawImage(obrazok, 0, 0);
+			const vstup: Blob = await new Promise((ok, zle) =>
+				c.toBlob((b) => (b ? ok(b) : zle(new Error('toBlob zlyhal'))), 'image/png'),
+			);
+
+			const vysledok = await removeBackground(vstup, {
+				proxyToWorker: true,
+				output: { format: 'image/png' },
+				progress: (kluc, hotovo, celkom) => {
+					const faza = kluc.startsWith('fetch')
+						? 'Sťahujem AI model (len prvýkrát)…'
+						: 'Odstraňujem pozadie…';
+					setOdstranovanie({
+						faza,
+						percenta: celkom > 0 ? Math.round((hotovo / celkom) * 100) : null,
+					});
+				},
+			});
+
+			// Výsledok do histórie — pohľad nemeníme, rozmer je rovnaký.
+			const url = URL.createObjectURL(vysledok);
+			const img = new window.Image();
+			img.onload = () => {
+				URL.revokeObjectURL(url);
+				pridajDoHistorie(img);
+			};
+			img.src = url;
+		} catch (chyba) {
+			console.error('Odstránenie pozadia zlyhalo:', chyba);
+			alert(
+				'Odstránenie pozadia zlyhalo. Skús to znova — ak sa to opakuje, over pripojenie na internet (prvé použitie sťahuje AI model).',
+			);
+		} finally {
+			setOdstranovanie(null);
+		}
+	};
+
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
 	const priZoome = (e: Konva.KonvaEventObject<WheelEvent>) => {
 		e.evt.preventDefault();
@@ -607,6 +662,16 @@ export default function Editor() {
 						<span className="w-12 tabular-nums">{ceruzkaVelkost}px</span>
 					</label>
 				)}
+
+				<button
+					type="button"
+					onClick={odstranPozadie}
+					disabled={!obrazok || !!odstranovanie}
+					title="AI odstráni pozadie — všetko prebehne v tvojom prehliadači"
+					className="rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:cursor-wait disabled:opacity-50"
+				>
+					{odstranovanie ? 'Pracujem…' : '✨ Odstrániť pozadie'}
+				</button>
 
 				<div className="relative">
 					<button
@@ -768,6 +833,31 @@ export default function Editor() {
 						)}
 					</Layer>
 				</Stage>
+
+				{odstranovanie && (
+					<div className="absolute inset-x-0 top-0 z-10 flex justify-center p-3">
+						<div className="w-80 rounded-lg border border-slate-700 bg-slate-800/95 p-4 shadow-xl">
+							<p className="text-sm text-slate-200">{odstranovanie.faza}</p>
+							<div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
+								<div
+									className={`h-full rounded-full bg-violet-500 transition-all ${
+										odstranovanie.percenta === null ? 'w-full animate-pulse' : ''
+									}`}
+									style={
+										odstranovanie.percenta !== null
+											? { width: `${odstranovanie.percenta}%` }
+											: undefined
+									}
+								/>
+							</div>
+							{odstranovanie.percenta !== null && (
+								<p className="mt-1 text-right text-xs text-slate-400">
+									{odstranovanie.percenta}%
+								</p>
+							)}
+						</div>
+					</div>
+				)}
 
 				{ukazujemPovodny && (
 					<div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-amber-500 px-4 py-1 text-sm font-medium text-slate-900 shadow">
