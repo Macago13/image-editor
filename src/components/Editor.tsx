@@ -164,6 +164,9 @@ export default function Editor() {
 	const [vektorOtvoreny, setVektorOtvoreny] = useState(false);
 	const [vektorFarieb, setVektorFarieb] = useState(8);
 	const [vektorujem, setVektorujem] = useState(false);
+	// Zamknutá paleta: vektor dostane len presné hex kódy zo zoznamu.
+	const [zamknutaPaleta, setZamknutaPaleta] = useState(false);
+	const [paletaText, setPaletaText] = useState('');
 	// Orezový rám (v súradniciach obrázka) a zvolený pomer strán.
 	const [orez, setOrez] = useState<Ram | null>(null);
 	const [pomerVolba, setPomerVolba] = useState<PomerVolba>('volny');
@@ -775,6 +778,18 @@ export default function Editor() {
 		}
 	};
 
+	// Z textu vytiahne platné hex farby: „#0057b7, ffd700 f60" → RGB trojice.
+	const parsujPaletu = (text: string): [number, number, number][] => {
+		const najdene = new Map<string, [number, number, number]>();
+		for (let kod of text.split(/[\s,;]+/).filter(Boolean)) {
+			kod = kod.replace(/^#/, '').toLowerCase();
+			if (/^[0-9a-f]{3}$/.test(kod)) kod = [...kod].map((z) => z + z).join('');
+			if (/^[0-9a-f]{6}$/.test(kod)) najdene.set(kod, hexNaRgb(`#${kod}`));
+		}
+		return [...najdene.values()];
+	};
+	const brandFarby = parsujPaletu(paletaText);
+
 	// Vektorizácia: pixely → SVG krivky cez imagetracerjs. Počet farieb
 	// zároveň funguje ako posterizácia (zjednodušenie na pár plôch).
 	// setTimeout dá Reactu šancu prekresliť tlačidlo na „Pracujem…",
@@ -792,9 +807,55 @@ export default function Editor() {
 				ctx.drawImage(obrazok, 0, 0);
 				const data = ctx.getImageData(0, 0, c.width, c.height);
 
+				const zamknute = zamknutaPaleta && brandFarby.length > 0;
+				let maPriehladnost = false;
+				if (zamknute) {
+					// Nearest color: každý pixel dostane najbližšiu farbu zo zoznamu.
+					// Polopriehľadné pixely sa rozhodnú na plno/nič — vektor
+					// potrebuje ostré hrany.
+					const px = data.data;
+					for (let i = 0; i < px.length; i += 4) {
+						if (px[i + 3] < 128) {
+							px[i + 3] = 0;
+							maPriehladnost = true;
+							continue;
+						}
+						px[i + 3] = 255;
+						let najlepsia = 0;
+						let najmensia = Infinity;
+						for (let f = 0; f < brandFarby.length; f++) {
+							const dr = px[i] - brandFarby[f][0];
+							const dg = px[i + 1] - brandFarby[f][1];
+							const db = px[i + 2] - brandFarby[f][2];
+							const d = dr * dr + dg * dg + db * db;
+							if (d < najmensia) {
+								najmensia = d;
+								najlepsia = f;
+							}
+						}
+						[px[i], px[i + 1], px[i + 2]] = brandFarby[najlepsia];
+					}
+				}
+
+				// Pri zamknutej palete traceru zakážeme vlastné miešanie farieb:
+				// dostane presne náš zoznam (+ priehľadnú, ak treba).
+				const pal = zamknute
+					? [
+							...brandFarby.map(([r, g, b]) => ({ r, g, b, a: 255 })),
+							...(maPriehladnost ? [{ r: 0, g: 0, b: 0, a: 0 }] : []),
+						]
+					: undefined;
+
 				const ImageTracer = (await import('imagetracerjs')).default;
 				const svg = ImageTracer.imagedataToSVG(data, {
-					numberofcolors: vektorFarieb,
+					...(pal
+						? {
+								pal,
+								colorsampling: 0,
+								colorquantcycles: 1,
+								numberofcolors: pal.length,
+							}
+						: { numberofcolors: vektorFarieb }),
 					viewbox: true,
 					// Drobné plôšky (šum z fotiek/JPG artefakty) sa vynechajú.
 					pathomit: 8,
@@ -1385,22 +1446,73 @@ export default function Editor() {
 								grafiky, nie na fotky.
 							</p>
 
-							<label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
-								Počet farieb
+							{!zamknutaPaleta && (
+								<>
+									<label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+										Počet farieb
+										<input
+											type="range"
+											min={2}
+											max={32}
+											value={vektorFarieb}
+											onChange={(e) => setVektorFarieb(Number(e.target.value))}
+											className="flex-1 accent-emerald-500"
+										/>
+										<span className="w-8 tabular-nums">{vektorFarieb}</span>
+									</label>
+									<p className="mt-1 text-xs text-slate-500">
+										Menej farieb = jednoduchší, čistší vektor (posterizácia).
+										Pre bežné logo skús 4–8.
+									</p>
+								</>
+							)}
+
+							<label className="mt-4 flex items-center gap-1.5 text-sm text-slate-300">
 								<input
-									type="range"
-									min={2}
-									max={32}
-									value={vektorFarieb}
-									onChange={(e) => setVektorFarieb(Number(e.target.value))}
-									className="flex-1 accent-emerald-500"
+									type="checkbox"
+									checked={zamknutaPaleta}
+									onChange={(e) => setZamknutaPaleta(e.target.checked)}
+									className="accent-emerald-500"
 								/>
-								<span className="w-8 tabular-nums">{vektorFarieb}</span>
+								Zamknúť na vlastné farby (presné hex kódy)
 							</label>
-							<p className="mt-1 text-xs text-slate-500">
-								Menej farieb = jednoduchší, čistší vektor (posterizácia).
-								Pre bežné logo skús 4–8.
-							</p>
+
+							{zamknutaPaleta && (
+								<>
+									<textarea
+										value={paletaText}
+										onChange={(e) => setPaletaText(e.target.value)}
+										placeholder="#0057b7, #ffd700, #ffffff"
+										spellCheck={false}
+										rows={2}
+										className="mt-2 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 font-mono text-sm text-slate-100"
+									/>
+									{brandFarby.length > 0 ? (
+										<div className="mt-2 flex flex-wrap items-center gap-1.5">
+											{brandFarby.map(([r, g, b]) => (
+												<span
+													key={`${r}-${g}-${b}`}
+													title={`#${doHex(r)}${doHex(g)}${doHex(b)}`}
+													className="h-6 w-6 rounded border border-slate-500"
+													style={{ backgroundColor: `rgb(${r},${g},${b})` }}
+												/>
+											))}
+											<span className="ml-1 text-xs text-slate-500">
+												{brandFarby.length}{' '}
+												{brandFarby.length === 1 ? 'farba' : 'farby/farieb'}
+											</span>
+										</div>
+									) : (
+										<p className="mt-2 text-xs text-amber-400">
+											Zadaj aspoň jeden platný hex kód (napr. #0057b7).
+										</p>
+									)}
+									<p className="mt-2 text-xs text-slate-500">
+										Každá plocha vo vektore dostane najbližšiu farbu z tvojho
+										zoznamu — výsledné SVG obsahuje len tieto presné kódy.
+									</p>
+								</>
+							)}
 
 							<div className="mt-5 flex justify-end gap-2">
 								<button
@@ -1413,7 +1525,7 @@ export default function Editor() {
 								<button
 									type="button"
 									onClick={vektorizuj}
-									disabled={vektorujem}
+									disabled={vektorujem || (zamknutaPaleta && brandFarby.length === 0)}
 									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-60"
 								>
 									{vektorujem ? 'Pracujem…' : 'Vektorizovať a stiahnuť'}

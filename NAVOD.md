@@ -164,6 +164,13 @@ dokonale ostré. Na fotky sa to nehodí — vyjde z nich abstraktné umenie.
 (posterizácia): pre bežné logo skús 4–8, pre zložitejšie grafiky viac.
 Menej farieb = čistejší, menší SVG súbor.
 
+**Zamknutie na vlastné farby** — keď má logo presné firemné farby,
+zaškrtni **Zamknúť na vlastné farby** a vypíš hex kódy oddelené čiarkou
+(napr. `#0057b7, #ffd700, #ffffff`). Pod políčkom sa ukážu rozpoznané
+farby. Každá plocha vo vektore potom dostane najbližšiu farbu z tvojho
+zoznamu — vo výslednom SVG budú **len tvoje presné kódy**, žiadne
+odtiene „skoro ako".
+
 Tip: pred vektorizáciou logo najprv vyčisti (odstráň pozadie, dorovnaj
 farby) — čistejší vstup = krajší vektor.
 
