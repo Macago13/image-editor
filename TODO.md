@@ -43,7 +43,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 - [x] AI odstránenie pozadia (`@imgly/background-removal`) + progress indikátor
 - [x] Nastaviť COOP/COEP hlavičky (nutné pre AI krok — viď CLAUDE.md)
 - [x] Presunúť AI operáciu do Web Workera (nech nezamrzne UI — cez `proxyToWorker`)
-- [ ] Odstránenie podľa farby (color-to-alpha): kvapkadlo + tolerančný slider,
+- [x] Odstránenie podľa farby (color-to-alpha): kvapkadlo + tolerančný slider,
       plynulý prechod alfa na hranách
 
 ➡️ **Commit:** `fáza 3: automatické aj farebné odstránenie pozadia`

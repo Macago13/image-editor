@@ -98,6 +98,21 @@ Dobré vedieť:
 - Okraje potom doladíš gumou (na zvyšky pozadia) alebo ceruzkou
   (na omylom zmazané časti).
 
+## 🎯 Odstránenie farby (najlepšie na logá)
+
+Keď má obrázok jednoliate pozadie (napr. biele logo na bielej ploche),
+netreba AI — rýchlejšie je odstrániť priamo farbu:
+
+1. **kvapkadlom** klikni na farbu, ktorá má zmiznúť (alebo ju vyber v palete),
+2. klikni na **🎯 Odstrániť farbu** a nastav **toleranciu**
+   (0 = len presne tá farba; vyššia hodnota berie aj blízke odtiene),
+3. potvrď **Odstrániť z celého obrázka**.
+
+Farba zmizne všade naraz — aj v uzavretých dierach vnútri loga, kam sa
+gumou dostáva ťažko. Ak zmizlo priveľa/primálo, **Ctrl + Z** a skús inú
+toleranciu. Na hranách appka robí plynulý prechod, takže okolo písmen
+nezostávajú tvrdé svetlé obrysy.
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**

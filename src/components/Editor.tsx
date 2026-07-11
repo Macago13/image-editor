@@ -61,6 +61,12 @@ type Bod = { x: number; y: number };
 
 const doHex = (n: number) => n.toString(16).padStart(2, '0');
 
+const hexNaRgb = (hex: string): [number, number, number] => [
+	parseInt(hex.slice(1, 3), 16),
+	parseInt(hex.slice(3, 5), 16),
+	parseInt(hex.slice(5, 7), 16),
+];
+
 // Základná paleta — rýchly výber bežných farieb.
 const PALETA = [
 	'#000000', '#475569', '#94a3b8', '#ffffff',
@@ -120,6 +126,9 @@ export default function Editor() {
 		faza: string;
 		percenta: number | null;
 	} | null>(null);
+	// Panel „Odstrániť farbu" (color-to-alpha) a jeho tolerancia.
+	const [ctaOtvorene, setCtaOtvorene] = useState(false);
+	const [ctaTolerancia, setCtaTolerancia] = useState(30);
 	const [ukazujemPovodny, setUkazujemPovodny] = useState(false);
 
 	// Na plátne sa zobrazuje: originál (kým držíš Pred/Po), inak pracovná
@@ -535,6 +544,42 @@ export default function Editor() {
 		}
 	};
 
+	// Color-to-alpha: prejde celý obrázok a spriehľadní každý pixel
+	// s farbou blízkou aktuálnej farbe. Rovnaká matematika ako tolerančná
+	// guma (prah + plynulý prechod), len globálne.
+	const odstranFarbu = () => {
+		if (!obrazok) return;
+		const c = document.createElement('canvas');
+		c.width = obrazok.width;
+		c.height = obrazok.height;
+		const ctx = c.getContext('2d', { willReadFrequently: true });
+		if (!ctx) return;
+		ctx.drawImage(obrazok, 0, 0);
+
+		const data = ctx.getImageData(0, 0, c.width, c.height);
+		const [vr, vg, vb] = hexNaRgb(farba);
+		const prah = (ctaTolerancia / 100) * 441.7;
+		const prechod = Math.max(prah * 0.5, 1);
+
+		for (let i = 0; i < data.data.length; i += 4) {
+			const alfa = data.data[i + 3];
+			if (alfa === 0) continue;
+			const dr = data.data[i] - vr;
+			const dg = data.data[i + 1] - vg;
+			const db = data.data[i + 2] - vb;
+			const vzdialenost = Math.sqrt(dr * dr + dg * dg + db * db);
+			if (vzdialenost <= prah) {
+				data.data[i + 3] = 0;
+			} else if (vzdialenost <= prah + prechod) {
+				const podiel = (vzdialenost - prah) / prechod;
+				data.data[i + 3] = Math.min(alfa, Math.round(alfa * podiel));
+			}
+		}
+		ctx.putImageData(data, 0, 0);
+		pridajDoHistorie(c);
+		setCtaOtvorene(false);
+	};
+
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
 	const priZoome = (e: Konva.KonvaEventObject<WheelEvent>) => {
 		e.evt.preventDefault();
@@ -672,6 +717,61 @@ export default function Editor() {
 				>
 					{odstranovanie ? 'Pracujem…' : '✨ Odstrániť pozadie'}
 				</button>
+
+				<div className="relative">
+					<button
+						type="button"
+						onClick={() => setCtaOtvorene((o) => !o)}
+						disabled={!obrazok}
+						title="Spriehľadní zvolenú farbu v celom obrázku"
+						className="rounded-md bg-cyan-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-600 disabled:opacity-50"
+					>
+						🎯 Odstrániť farbu
+					</button>
+
+					{ctaOtvorene && (
+						<>
+							<div
+								className="fixed inset-0 z-10"
+								onClick={() => setCtaOtvorene(false)}
+							/>
+							<div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-slate-700 bg-slate-800 p-3 shadow-xl">
+								<p className="text-sm text-slate-300">
+									Z celého obrázka zmizne táto farba:
+								</p>
+								<div className="mt-2 flex items-center gap-2 text-sm text-slate-300">
+									<span
+										className="h-6 w-6 rounded border border-slate-500"
+										style={{ backgroundColor: farba }}
+									/>
+									<code>{farba}</code>
+									<span className="text-xs text-slate-500">
+										(zmeň kvapkadlom / paletou)
+									</span>
+								</div>
+								<label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+									Tolerancia
+									<input
+										type="range"
+										min={0}
+										max={100}
+										value={ctaTolerancia}
+										onChange={(e) => setCtaTolerancia(Number(e.target.value))}
+										className="flex-1 accent-emerald-500"
+									/>
+									<span className="w-8 tabular-nums">{ctaTolerancia}</span>
+								</label>
+								<button
+									type="button"
+									onClick={odstranFarbu}
+									className="mt-3 w-full rounded-md bg-cyan-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-cyan-600"
+								>
+									Odstrániť z celého obrázka
+								</button>
+							</div>
+						</>
+					)}
+				</div>
 
 				<div className="relative">
 					<button
