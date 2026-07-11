@@ -51,9 +51,9 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 ## Fáza 4 — Orezanie + export
 
 - [x] Orezanie: voľné aj s uzamknutým pomerom (1:1, 16:9, vlastný)
-- [ ] Presné zadanie výstupnej veľkosti v pixeloch
-- [ ] Export do PNG (s priehľadnosťou), JPG, WebP
-- [ ] Kvalitný resize pri exporte (cez `pica`)
+- [x] Presné zadanie výstupnej veľkosti v pixeloch
+- [x] Export do PNG (s priehľadnosťou), JPG, WebP
+- [x] Kvalitný resize pri exporte (cez `pica`)
 - [ ] Dávkový export — jeden obrázok vo viacerých veľkostiach naraz
 
 ➡️ **Commit:** `fáza 4: orezanie a export s presným rozmerom`

@@ -129,6 +129,25 @@ Vedľa vidíš rozmer výrezu v pixeloch.
 Klikni **Orezať** a hotovo — Ctrl + Z orez vráti. **Zrušiť** rám len
 schová bez zmeny obrázka.
 
+## ⬇️ Export (stiahnutie výsledku)
+
+Klikni na **Export** vpravo hore. V okne si vyberieš:
+
+- **Formát:**
+  - **PNG** — zachová priehľadnosť (šachovnicu), ideálne pre logá
+    a obrázky s odstráneným pozadím,
+  - **JPG** — pre bežné fotky; priehľadné miesta sa podložia bielou,
+  - **WebP** — moderný formát s malými súbormi, vhodný na web.
+- **Rozmer v pixeloch** — predvyplnený je skutočný rozmer obrázka.
+  Šírka a výška sú zviazané, aby sa obrázok nezdeformoval (iný tvar
+  dosiahneš orezom). Zmenšovanie robí kvalitný algoritmus, takže
+  napr. miniatúra 200px zostane ostrá.
+- **Kvalita** (len JPG/WebP) — 90 je rozumný štandard; nižšia = menší
+  súbor, horší obraz.
+
+Klikni **Stiahnuť** a súbor pristane v priečinku Stiahnuté
+(napr. `obrazok-800x600.png`).
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**
