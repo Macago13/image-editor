@@ -59,6 +59,15 @@ Posuvník **Tolerancia** určuje, aké odtiene sa ešte počítajú ako „tá i
 farba": 0 = len úplne presná farba, väčšie číslo = aj podobné odtiene.
 Začni okolo 30 a dolaď podľa výsledku (Ctrl + Z je kamarát).
 
+### ✏️ Ceruzka
+
+Dokreslí, čo chýba — kreslí **aktuálnou farbou** (tá vo štvorčeku
+v hlavičke). Veľkosť stopy má vlastný posuvník, nezávislý od gumy.
+
+Typický postup: kvapkadlom klikni na farbu v obrázku, ktorú chceš
+doplniť, prepni na ceruzku a dokresli. Krúžok pri kurzore ukazuje
+stopu aj farbu, ktorou budeš kresliť.
+
 ## Krok späť a znova
 
 Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo

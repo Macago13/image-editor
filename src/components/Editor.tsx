@@ -55,7 +55,7 @@ const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
 // Koľko krokov späť si pamätáme — každý stav drží celý obrázok v pamäti.
 const MAX_HISTORIA = 30;
 
-type Nastroj = 'posun' | 'kvapkadlo' | 'guma';
+type Nastroj = 'posun' | 'kvapkadlo' | 'guma' | 'ceruzka';
 
 type Bod = { x: number; y: number };
 
@@ -76,6 +76,7 @@ export default function Editor() {
 	const [nastroj, setNastroj] = useState<Nastroj>('posun');
 	const [farba, setFarba] = useState('#000000');
 	const [gumaVelkost, setGumaVelkost] = useState(40);
+	const [ceruzkaVelkost, setCeruzkaVelkost] = useState(12);
 	// Tolerančný režim gumy: maže len farbu podobnú tej, na ktorej sa ťah začal.
 	const [tolerancna, setTolerancna] = useState(false);
 	const [tolerancia, setTolerancia] = useState(30);
@@ -93,6 +94,10 @@ export default function Editor() {
 
 	// Na plátne sa zobrazuje pracovná kópia (počas ťahu), inak aktuálny krok histórie.
 	const zobrazeny = pracovny ?? obrazok;
+
+	// Guma a ceruzka majú každá svoju veľkosť stopy.
+	const kresliaci = nastroj === 'guma' || nastroj === 'ceruzka';
+	const velkostStopy = nastroj === 'ceruzka' ? ceruzkaVelkost : gumaVelkost;
 
 	// Neviditeľný canvas s pixelmi aktuálneho obrázka — z neho číta kvapkadlo.
 	// Vyrába sa nanovo len pri zmene obrázka, nie pri každom kliku.
@@ -276,19 +281,25 @@ export default function Editor() {
 		setFarba(`#${doHex(r)}${doHex(g)}${doHex(b)}`);
 	};
 
-	// Vymaže (spriehľadní) čiaru z bodu do bodu — režim destination-out
-	// z obrázka „vyrezáva". Rovnaký bod dvakrát = bodka.
-	const gumujSegment = (platno: HTMLCanvasElement, od: Bod, kam: Bod) => {
+	// Nakreslí čiaru z bodu do bodu. Guma „vyrezáva" do priehľadna
+	// (destination-out), ceruzka kreslí aktuálnou farbou. Rovnaký bod
+	// dvakrát = bodka.
+	const kresliSegment = (platno: HTMLCanvasElement, od: Bod, kam: Bod) => {
 		const ctx = platno.getContext('2d');
 		if (!ctx) return;
 		ctx.save();
-		ctx.globalCompositeOperation = 'destination-out';
+		if (nastroj === 'guma') {
+			ctx.globalCompositeOperation = 'destination-out';
+		} else {
+			ctx.fillStyle = farba;
+			ctx.strokeStyle = farba;
+		}
 		if (od.x === kam.x && od.y === kam.y) {
 			ctx.beginPath();
-			ctx.arc(od.x, od.y, gumaVelkost / 2, 0, Math.PI * 2);
+			ctx.arc(od.x, od.y, velkostStopy / 2, 0, Math.PI * 2);
 			ctx.fill();
 		} else {
-			ctx.lineWidth = gumaVelkost;
+			ctx.lineWidth = velkostStopy;
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
 			ctx.beginPath();
@@ -359,9 +370,9 @@ export default function Editor() {
 		}
 	};
 
-	// Stlačenie myši s gumou: vyrobí pracovnú kópiu a vymaže prvú bodku.
+	// Stlačenie myši s gumou/ceruzkou: vyrobí pracovnú kópiu a spraví prvú bodku.
 	const zacniTah = () => {
-		if (nastroj !== 'guma' || !obrazok) return;
+		if (!kresliaci || !obrazok) return;
 		const kopia = document.createElement('canvas');
 		kopia.width = obrazok.width;
 		kopia.height = obrazok.height;
@@ -370,7 +381,7 @@ export default function Editor() {
 		ctx.drawImage(obrazok, 0, 0);
 
 		const bod = bodNaObrazku();
-		if (tolerancna) {
+		if (nastroj === 'guma' && tolerancna) {
 			// Vzorová farba = pixel, na ktorom sa ťah začal. Mimo obrázka
 			// alebo na priehľadnom mieste tolerančný ťah nezačne.
 			if (!bod) return;
@@ -386,7 +397,7 @@ export default function Editor() {
 			};
 			stampTolerancne(kopia, bod);
 		} else if (bod) {
-			gumujSegment(kopia, bod, bod);
+			kresliSegment(kopia, bod, bod);
 		}
 		poslednyBodRef.current = bod;
 		kreslimRef.current = true;
@@ -401,7 +412,7 @@ export default function Editor() {
 		if (tolerancna && tolerDataRef.current) {
 			tolerancnySegment(pracovny, poslednyBodRef.current ?? bod, bod);
 		} else {
-			gumujSegment(pracovny, poslednyBodRef.current ?? bod, bod);
+			kresliSegment(pracovny, poslednyBodRef.current ?? bod, bod);
 		}
 		poslednyBodRef.current = bod;
 		stageRef.current?.batchDraw();
@@ -472,6 +483,7 @@ export default function Editor() {
 							['posun', '✋ Posun'],
 							['kvapkadlo', '💧 Kvapkadlo'],
 							['guma', '🧽 Guma'],
+							['ceruzka', '✏️ Ceruzka'],
 						] as const
 					).map(([id, popis]) => (
 						<button
@@ -531,10 +543,24 @@ export default function Editor() {
 						)}
 					</>
 				)}
+				{nastroj === 'ceruzka' && (
+					<label className="flex items-center gap-2 text-sm text-slate-300">
+						Veľkosť
+						<input
+							type="range"
+							min={1}
+							max={100}
+							value={ceruzkaVelkost}
+							onChange={(e) => setCeruzkaVelkost(Number(e.target.value))}
+							className="w-32 accent-emerald-500"
+						/>
+						<span className="w-12 tabular-nums">{ceruzkaVelkost}px</span>
+					</label>
+				)}
 
 				<div
 					className="flex items-center gap-2 text-sm text-slate-300"
-					title="Aktuálna farba (vyberá kvapkadlo)"
+					title="Aktuálna farba (vyberá kvapkadlo aj kreslí ceruzka)"
 				>
 					<span
 						className="h-6 w-6 rounded border border-slate-500"
@@ -570,7 +596,7 @@ export default function Editor() {
 				className={`relative flex-1 overflow-hidden ${
 					nastroj === 'kvapkadlo'
 						? 'cursor-crosshair'
-						: nastroj === 'guma'
+						: kresliaci
 							? 'cursor-none'
 							: 'cursor-grab'
 				}`}
@@ -609,16 +635,19 @@ export default function Editor() {
 								fill="#475569"
 							/>
 						)}
-						{nastroj === 'guma' && kurzor && (
-							// Krúžok ukazuje presný záber gumy; hrúbka čiary sa
-							// nezväčšuje so zoomom (strokeScaleEnabled).
+						{kresliaci && kurzor && (
+							// Krúžok ukazuje presný záber gumy/ceruzky; hrúbka čiary
+							// sa nezväčšuje so zoomom (strokeScaleEnabled). Pri ceruzke
+							// je vyplnený aktuálnou farbou.
 							<Circle
 								x={kurzor.x}
 								y={kurzor.y}
-								radius={gumaVelkost / 2}
+								radius={velkostStopy / 2}
 								stroke="#0f172a"
 								strokeWidth={1.5}
 								strokeScaleEnabled={false}
+								fill={nastroj === 'ceruzka' ? farba : undefined}
+								opacity={nastroj === 'ceruzka' ? 0.6 : 1}
 								listening={false}
 							/>
 						)}
