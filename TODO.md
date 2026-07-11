@@ -60,10 +60,10 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 ## Fáza 5 — Vektorizácia (najkomplexnejšia, na koniec)
 
-- [ ] Posterizácia — slider na počet farieb
+- [x] Posterizácia — slider na počet farieb (v dialógu vektorizácie)
 - [ ] Vlastná/zamknutá paleta — priradenie každej plochy k najbližšiemu hex kódu
       zo zadaného zoznamu
-- [ ] Vektorizácia → export SVG (cez `imagetracerjs`)
+- [x] Vektorizácia → export SVG (cez `imagetracerjs`)
 - [ ] Porovnať kvalitu výsledku oproti Photopea → Image → Vectorize Bitmap
 
 ➡️ **Commit:** `fáza 5: vektorizácia, posterizácia, vlastná paleta`

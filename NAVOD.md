@@ -154,6 +154,19 @@ každú veľkosť — ideálne, keď potrebuješ logo vo viacerých rozmeroch.
 Prehliadač sa možno raz opýta, či stránke povoliť sťahovanie viacerých
 súborov — povoľ to.
 
+## 🔷 Vektorizácia (SVG)
+
+Pre **logá a jednoduché grafiky**: tlačidlo **🔷 SVG** prevedie obrázok
+z pixelov na krivky. Výsledné SVG môžeš zväčšiť na billboard a zostane
+dokonale ostré. Na fotky sa to nehodí — vyjde z nich abstraktné umenie.
+
+**Počet farieb** určuje, na koľko farebných plôch sa obrázok zjednoduší
+(posterizácia): pre bežné logo skús 4–8, pre zložitejšie grafiky viac.
+Menej farieb = čistejší, menší SVG súbor.
+
+Tip: pred vektorizáciou logo najprv vyčisti (odstráň pozadie, dorovnaj
+farby) — čistejší vstup = krajší vektor.
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**

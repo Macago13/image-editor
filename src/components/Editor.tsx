@@ -160,6 +160,10 @@ export default function Editor() {
 	// Dávkový export: viac šírok naraz, oddelených čiarkou.
 	const [davkovy, setDavkovy] = useState(false);
 	const [davkoveSirky, setDavkoveSirky] = useState('1024, 512, 256');
+	// Vektorizácia do SVG: dialóg, počet farieb (posterizácia) a priebeh.
+	const [vektorOtvoreny, setVektorOtvoreny] = useState(false);
+	const [vektorFarieb, setVektorFarieb] = useState(8);
+	const [vektorujem, setVektorujem] = useState(false);
 	// Orezový rám (v súradniciach obrázka) a zvolený pomer strán.
 	const [orez, setOrez] = useState<Ram | null>(null);
 	const [pomerVolba, setPomerVolba] = useState<PomerVolba>('volny');
@@ -771,6 +775,48 @@ export default function Editor() {
 		}
 	};
 
+	// Vektorizácia: pixely → SVG krivky cez imagetracerjs. Počet farieb
+	// zároveň funguje ako posterizácia (zjednodušenie na pár plôch).
+	// setTimeout dá Reactu šancu prekresliť tlačidlo na „Pracujem…",
+	// lebo trace beží synchrónne a na chvíľu zamestná hlavné vlákno.
+	const vektorizuj = () => {
+		if (!obrazok || vektorujem) return;
+		setVektorujem(true);
+		setTimeout(async () => {
+			try {
+				const c = document.createElement('canvas');
+				c.width = obrazok.width;
+				c.height = obrazok.height;
+				const ctx = c.getContext('2d');
+				if (!ctx) throw new Error('canvas kontext zlyhal');
+				ctx.drawImage(obrazok, 0, 0);
+				const data = ctx.getImageData(0, 0, c.width, c.height);
+
+				const ImageTracer = (await import('imagetracerjs')).default;
+				const svg = ImageTracer.imagedataToSVG(data, {
+					numberofcolors: vektorFarieb,
+					viewbox: true,
+					// Drobné plôšky (šum z fotiek/JPG artefakty) sa vynechajú.
+					pathomit: 8,
+					roundcoords: 1,
+				});
+
+				const blob = new Blob([svg], { type: 'image/svg+xml' });
+				const a = document.createElement('a');
+				a.href = URL.createObjectURL(blob);
+				a.download = 'obrazok-vektor.svg';
+				a.click();
+				URL.revokeObjectURL(a.href);
+				setVektorOtvoreny(false);
+			} catch (chyba) {
+				console.error('Vektorizácia zlyhala:', chyba);
+				alert('Vektorizácia zlyhala, skús to prosím znova.');
+			} finally {
+				setVektorujem(false);
+			}
+		}, 50);
+	};
+
 	// Color-to-alpha: prejde celý obrázok a spriehľadní každý pixel
 	// s farbou blízkou aktuálnej farbe. Rovnaká matematika ako tolerančná
 	// guma (prah + plynulý prechod), len globálne.
@@ -1123,6 +1169,15 @@ export default function Editor() {
 				<div className="ml-auto flex items-center gap-1">
 					<button
 						type="button"
+						onClick={() => setVektorOtvoreny(true)}
+						disabled={!obrazok}
+						title="Prevedie obrázok na SVG krivky — ideálne pre logá"
+						className="rounded-md bg-slate-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-600 disabled:opacity-50"
+					>
+						🔷 SVG
+					</button>
+					<button
+						type="button"
 						onClick={otvorExport}
 						disabled={!obrazok}
 						title="Stiahni výsledok ako PNG, JPG alebo WebP"
@@ -1315,6 +1370,56 @@ export default function Editor() {
 				{ukazujemPovodny && (
 					<div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-amber-500 px-4 py-1 text-sm font-medium text-slate-900 shadow">
 						Pôvodný obrázok
+					</div>
+				)}
+
+				{vektorOtvoreny && obrazok && (
+					<div className="absolute inset-0 flex items-center justify-center bg-black/50">
+						<div className="w-96 rounded-lg bg-slate-800 p-5 shadow-xl">
+							<h2 className="font-semibold text-slate-100">
+								Vektorizácia do SVG
+							</h2>
+							<p className="mt-2 text-sm text-slate-400">
+								Obrázok sa prevedie na krivky — SVG sa dá ľubovoľne zväčšovať
+								bez straty ostrosti. Funguje najlepšie na logá a jednoduché
+								grafiky, nie na fotky.
+							</p>
+
+							<label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
+								Počet farieb
+								<input
+									type="range"
+									min={2}
+									max={32}
+									value={vektorFarieb}
+									onChange={(e) => setVektorFarieb(Number(e.target.value))}
+									className="flex-1 accent-emerald-500"
+								/>
+								<span className="w-8 tabular-nums">{vektorFarieb}</span>
+							</label>
+							<p className="mt-1 text-xs text-slate-500">
+								Menej farieb = jednoduchší, čistší vektor (posterizácia).
+								Pre bežné logo skús 4–8.
+							</p>
+
+							<div className="mt-5 flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={() => setVektorOtvoreny(false)}
+									className="rounded-md px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
+								>
+									Zrušiť
+								</button>
+								<button
+									type="button"
+									onClick={vektorizuj}
+									disabled={vektorujem}
+									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-60"
+								>
+									{vektorujem ? 'Pracujem…' : 'Vektorizovať a stiahnuť'}
+								</button>
+							</div>
+						</div>
 					</div>
 				)}
 
