@@ -31,7 +31,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 
 - [x] Kvapkadlo (výber farby priamo z obrázka)
 - [x] Guma s nastaviteľnou veľkosťou
-- [ ] Tolerančný režim gumy (maže len farbu, na ktorú klikneš, nezasahuje okolie)
+- [x] Tolerančný režim gumy (maže len farbu, na ktorú klikneš, nezasahuje okolie)
 - [ ] Ceruzka na dokreslenie (výber farby a veľkosti)
 - [ ] Farebná paleta + presné zadanie hex kódu
 - [ ] Náhľad pred/po (rýchle prepnutie originál ↔ upravené)

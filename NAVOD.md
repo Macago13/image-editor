@@ -52,6 +52,13 @@ naraz.
 Tip: na jemné dočisťovanie okrajov si obrázok najprv priblíž a nastav
 malú gumu.
 
+**Režim „Len podobná farba"** — zaškrtni políčko v hlavičke a guma
+začne mazať len farbu, na ktorej si **začal ťah** (napr. biele pozadie),
+ostatné farby nechá tak. Môžeš tak smelo prejsť gumou aj cez okraj loga.
+Posuvník **Tolerancia** určuje, aké odtiene sa ešte počítajú ako „tá istá
+farba": 0 = len úplne presná farba, väčšie číslo = aj podobné odtiene.
+Začni okolo 30 a dolaď podľa výsledku (Ctrl + Z je kamarát).
+
 ## Krok späť a znova
 
 Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo

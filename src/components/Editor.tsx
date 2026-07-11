@@ -76,6 +76,14 @@ export default function Editor() {
 	const [nastroj, setNastroj] = useState<Nastroj>('posun');
 	const [farba, setFarba] = useState('#000000');
 	const [gumaVelkost, setGumaVelkost] = useState(40);
+	// Tolerančný režim gumy: maže len farbu podobnú tej, na ktorej sa ťah začal.
+	const [tolerancna, setTolerancna] = useState(false);
+	const [tolerancia, setTolerancia] = useState(30);
+	// Počas tolerančného ťahu: pixely pracovnej kópie + vzorová farba zo štartu ťahu.
+	const tolerDataRef = useRef<{
+		data: ImageData;
+		vzor: [number, number, number];
+	} | null>(null);
 	// Pracovná kópia obrázka počas ťahu gumou; do histórie ide až po pustení myši.
 	const [pracovny, setPracovny] = useState<HTMLCanvasElement | null>(null);
 	const kreslimRef = useRef(false);
@@ -291,16 +299,95 @@ export default function Editor() {
 		ctx.restore();
 	};
 
+	// Tolerančná pečiatka: v kruhu gumy spriehľadní len pixely, ktorých farba
+	// je blízko vzoru. Nad prahom tolerancie je ešte pásmo plynulého prechodu,
+	// aby na hranách nezostávali tvrdé zúbky.
+	const stampTolerancne = (platno: HTMLCanvasElement, stred: Bod) => {
+		const info = tolerDataRef.current;
+		const ctx = platno.getContext('2d');
+		if (!info || !ctx) return;
+		const { data } = info;
+		const [vr, vg, vb] = info.vzor;
+		const polomer = gumaVelkost / 2;
+		// Tolerancia 0–100 → vzdialenosť farieb 0–441 (maximum v RGB kocke).
+		const prah = (tolerancia / 100) * 441.7;
+		const prechod = Math.max(prah * 0.5, 1);
+
+		const x0 = Math.max(0, Math.floor(stred.x - polomer));
+		const y0 = Math.max(0, Math.floor(stred.y - polomer));
+		const x1 = Math.min(platno.width - 1, Math.ceil(stred.x + polomer));
+		const y1 = Math.min(platno.height - 1, Math.ceil(stred.y + polomer));
+		if (x1 < x0 || y1 < y0) return;
+
+		for (let y = y0; y <= y1; y++) {
+			for (let x = x0; x <= x1; x++) {
+				const dx = x + 0.5 - stred.x;
+				const dy = y + 0.5 - stred.y;
+				if (dx * dx + dy * dy > polomer * polomer) continue;
+
+				const i = (y * platno.width + x) * 4;
+				const alfa = data.data[i + 3];
+				if (alfa === 0) continue;
+
+				const dr = data.data[i] - vr;
+				const dg = data.data[i + 1] - vg;
+				const db = data.data[i + 2] - vb;
+				const vzdialenost = Math.sqrt(dr * dr + dg * dg + db * db);
+
+				if (vzdialenost <= prah) {
+					data.data[i + 3] = 0;
+				} else if (vzdialenost <= prah + prechod) {
+					// Plynulý prechod: čím bližšie k prahu, tým priehľadnejšie.
+					const podiel = (vzdialenost - prah) / prechod;
+					data.data[i + 3] = Math.min(alfa, Math.round(alfa * podiel));
+				}
+			}
+		}
+		ctx.putImageData(data, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+	};
+
+	// Tolerančný ťah medzi dvoma bodmi = pečiatky husto za sebou.
+	const tolerancnySegment = (platno: HTMLCanvasElement, od: Bod, kam: Bod) => {
+		const dlzka = Math.hypot(kam.x - od.x, kam.y - od.y);
+		const pocet = Math.max(1, Math.ceil(dlzka / Math.max(1, gumaVelkost / 4)));
+		for (let k = 1; k <= pocet; k++) {
+			const t = k / pocet;
+			stampTolerancne(platno, {
+				x: od.x + (kam.x - od.x) * t,
+				y: od.y + (kam.y - od.y) * t,
+			});
+		}
+	};
+
 	// Stlačenie myši s gumou: vyrobí pracovnú kópiu a vymaže prvú bodku.
 	const zacniTah = () => {
 		if (nastroj !== 'guma' || !obrazok) return;
 		const kopia = document.createElement('canvas');
 		kopia.width = obrazok.width;
 		kopia.height = obrazok.height;
-		kopia.getContext('2d')?.drawImage(obrazok, 0, 0);
+		const ctx = kopia.getContext('2d', { willReadFrequently: true });
+		if (!ctx) return;
+		ctx.drawImage(obrazok, 0, 0);
 
 		const bod = bodNaObrazku();
-		if (bod) gumujSegment(kopia, bod, bod);
+		if (tolerancna) {
+			// Vzorová farba = pixel, na ktorom sa ťah začal. Mimo obrázka
+			// alebo na priehľadnom mieste tolerančný ťah nezačne.
+			if (!bod) return;
+			const x = Math.floor(bod.x);
+			const y = Math.floor(bod.y);
+			if (x < 0 || y < 0 || x >= kopia.width || y >= kopia.height) return;
+			const data = ctx.getImageData(0, 0, kopia.width, kopia.height);
+			const i = (y * kopia.width + x) * 4;
+			if (data.data[i + 3] === 0) return;
+			tolerDataRef.current = {
+				data,
+				vzor: [data.data[i], data.data[i + 1], data.data[i + 2]],
+			};
+			stampTolerancne(kopia, bod);
+		} else if (bod) {
+			gumujSegment(kopia, bod, bod);
+		}
 		poslednyBodRef.current = bod;
 		kreslimRef.current = true;
 		setPracovny(kopia);
@@ -311,7 +398,11 @@ export default function Editor() {
 		const bod = bodNaObrazku();
 		setKurzor(bod);
 		if (!kreslimRef.current || !pracovny || !bod) return;
-		gumujSegment(pracovny, poslednyBodRef.current ?? bod, bod);
+		if (tolerancna && tolerDataRef.current) {
+			tolerancnySegment(pracovny, poslednyBodRef.current ?? bod, bod);
+		} else {
+			gumujSegment(pracovny, poslednyBodRef.current ?? bod, bod);
+		}
 		poslednyBodRef.current = bod;
 		stageRef.current?.batchDraw();
 	};
@@ -321,6 +412,7 @@ export default function Editor() {
 		if (!kreslimRef.current) return;
 		kreslimRef.current = false;
 		poslednyBodRef.current = null;
+		tolerDataRef.current = null;
 		if (pracovny) {
 			pridajDoHistorie(pracovny);
 			setPracovny(null);
@@ -398,18 +490,46 @@ export default function Editor() {
 				</div>
 
 				{nastroj === 'guma' && (
-					<label className="flex items-center gap-2 text-sm text-slate-300">
-						Veľkosť
-						<input
-							type="range"
-							min={4}
-							max={300}
-							value={gumaVelkost}
-							onChange={(e) => setGumaVelkost(Number(e.target.value))}
-							className="w-32 accent-emerald-500"
-						/>
-						<span className="w-12 tabular-nums">{gumaVelkost}px</span>
-					</label>
+					<>
+						<label className="flex items-center gap-2 text-sm text-slate-300">
+							Veľkosť
+							<input
+								type="range"
+								min={4}
+								max={300}
+								value={gumaVelkost}
+								onChange={(e) => setGumaVelkost(Number(e.target.value))}
+								className="w-32 accent-emerald-500"
+							/>
+							<span className="w-12 tabular-nums">{gumaVelkost}px</span>
+						</label>
+						<label
+							className="flex items-center gap-1.5 text-sm text-slate-300"
+							title="Guma maže len farbu, na ktorej si začal ťah"
+						>
+							<input
+								type="checkbox"
+								checked={tolerancna}
+								onChange={(e) => setTolerancna(e.target.checked)}
+								className="accent-emerald-500"
+							/>
+							Len podobná farba
+						</label>
+						{tolerancna && (
+							<label className="flex items-center gap-2 text-sm text-slate-300">
+								Tolerancia
+								<input
+									type="range"
+									min={0}
+									max={100}
+									value={tolerancia}
+									onChange={(e) => setTolerancia(Number(e.target.value))}
+									className="w-24 accent-emerald-500"
+								/>
+								<span className="w-8 tabular-nums">{tolerancia}</span>
+							</label>
+						)}
+					</>
 				)}
 
 				<div
