@@ -113,6 +113,22 @@ gumou dostáva ťažko. Ak zmizlo priveľa/primálo, **Ctrl + Z** a skús inú
 toleranciu. Na hranách appka robí plynulý prechod, takže okolo písmen
 nezostávajú tvrdé svetlé obrysy.
 
+### ✂️ Orez
+
+Prepni na nástroj **Orez** — na obrázku sa objaví zelený rám a okolie
+stmavne (tmavé časti sa odrežú). Rám môžeš:
+
+- **ťahať** za stred a presúvať,
+- **zväčšovať/zmenšovať** za úchytky v rohoch a na stranách.
+
+V hlavičke vyberieš **pomer strán**: Voľný (ľubovoľný tvar), 1:1
+(štvorec, napr. na profilovku), 4:3, 16:9, 9:16, alebo Vlastný — zadáš
+vlastné čísla (napr. 3:2). Pri zamknutom pomere rám drží tvar.
+Vedľa vidíš rozmer výrezu v pixeloch.
+
+Klikni **Orezať** a hotovo — Ctrl + Z orez vráti. **Zrušiť** rám len
+schová bez zmeny obrázka.
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**

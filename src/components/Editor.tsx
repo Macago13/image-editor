@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CSSProperties } from 'react';
-import { Stage, Layer, Image as KonvaImage, Text, Circle } from 'react-konva';
+import {
+	Stage,
+	Layer,
+	Image as KonvaImage,
+	Text,
+	Circle,
+	Rect,
+	Transformer,
+} from 'react-konva';
 import type Konva from 'konva';
 
 // Šachovnica cez CSS gradient — signalizuje priehľadné časti plátna.
@@ -55,9 +63,21 @@ const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
 // Koľko krokov späť si pamätáme — každý stav drží celý obrázok v pamäti.
 const MAX_HISTORIA = 30;
 
-type Nastroj = 'posun' | 'kvapkadlo' | 'guma' | 'ceruzka';
+type Nastroj = 'posun' | 'kvapkadlo' | 'guma' | 'ceruzka' | 'orez';
 
 type Bod = { x: number; y: number };
+type Ram = { x: number; y: number; width: number; height: number };
+
+// Predvolené pomery strán orezu; null = voľný.
+const POMERY = [
+	['volny', 'Voľný'],
+	['1:1', '1:1'],
+	['4:3', '4:3'],
+	['16:9', '16:9'],
+	['9:16', '9:16'],
+	['vlastny', 'Vlastný'],
+] as const;
+type PomerVolba = (typeof POMERY)[number][0];
 
 const doHex = (n: number) => n.toString(16).padStart(2, '0');
 
@@ -129,6 +149,25 @@ export default function Editor() {
 	// Panel „Odstrániť farbu" (color-to-alpha) a jeho tolerancia.
 	const [ctaOtvorene, setCtaOtvorene] = useState(false);
 	const [ctaTolerancia, setCtaTolerancia] = useState(30);
+	// Orezový rám (v súradniciach obrázka) a zvolený pomer strán.
+	const [orez, setOrez] = useState<Ram | null>(null);
+	const [pomerVolba, setPomerVolba] = useState<PomerVolba>('volny');
+	const [vlastnyPomer, setVlastnyPomer] = useState({ w: 1, h: 1 });
+	const orezRectRef = useRef<Konva.Rect>(null);
+	const transformerRef = useRef<Konva.Transformer>(null);
+
+	// Číselná hodnota pomeru (šírka / výška); null = voľný.
+	const pomer =
+		pomerVolba === 'volny'
+			? null
+			: pomerVolba === 'vlastny'
+				? vlastnyPomer.w > 0 && vlastnyPomer.h > 0
+					? vlastnyPomer.w / vlastnyPomer.h
+					: null
+				: (() => {
+						const [w, h] = pomerVolba.split(':').map(Number);
+						return w / h;
+					})();
 	const [ukazujemPovodny, setUkazujemPovodny] = useState(false);
 
 	// Na plátne sa zobrazuje: originál (kým držíš Pred/Po), inak pracovná
@@ -544,6 +583,74 @@ export default function Editor() {
 		}
 	};
 
+	// Pri zapnutí orezu (alebo zmene obrázka počas neho) sa rám nastaví
+	// na 80 % obrázka, v strede, prispôsobený zvolenému pomeru.
+	useEffect(() => {
+		if (nastroj !== 'orez' || !obrazok) {
+			setOrez(null);
+			return;
+		}
+		let w = obrazok.width * 0.8;
+		let h = pomer ? w / pomer : obrazok.height * 0.8;
+		if (h > obrazok.height * 0.95) {
+			h = obrazok.height * 0.8;
+			w = pomer ? h * pomer : w;
+		}
+		setOrez({
+			x: (obrazok.width - w) / 2,
+			y: (obrazok.height - h) / 2,
+			width: w,
+			height: h,
+		});
+	}, [nastroj, obrazok, pomer]);
+
+	// Transformer (úchytky) sa musí ručne pripnúť na orezový rám.
+	useEffect(() => {
+		const tr = transformerRef.current;
+		const rect = orezRectRef.current;
+		if (nastroj === 'orez' && orez && tr && rect) {
+			tr.nodes([rect]);
+			tr.getLayer()?.batchDraw();
+		}
+	}, [nastroj, orez !== null]);
+
+	// Po potiahnutí/zmene veľkosti rámu prepíše nové hodnoty do stavu.
+	// Konva mení scale, nie width/height — tu to znormalizujeme späť.
+	const prevezmiRam = () => {
+		const rect = orezRectRef.current;
+		if (!rect) return;
+		const novy: Ram = {
+			x: rect.x(),
+			y: rect.y(),
+			width: Math.max(1, rect.width() * rect.scaleX()),
+			height: Math.max(1, rect.height() * rect.scaleY()),
+		};
+		rect.scale({ x: 1, y: 1 });
+		setOrez(novy);
+	};
+
+	// Vyreže prienik rámu s obrázkom ako nový krok histórie.
+	const aplikujOrez = () => {
+		if (!obrazok || !orez) return;
+		const x0 = Math.max(0, Math.round(orez.x));
+		const y0 = Math.max(0, Math.round(orez.y));
+		const x1 = Math.min(obrazok.width, Math.round(orez.x + orez.width));
+		const y1 = Math.min(obrazok.height, Math.round(orez.y + orez.height));
+		const w = x1 - x0;
+		const h = y1 - y0;
+		if (w < 1 || h < 1) {
+			alert('Orezový rám je celý mimo obrázka.');
+			return;
+		}
+		const c = document.createElement('canvas');
+		c.width = w;
+		c.height = h;
+		c.getContext('2d')?.drawImage(obrazok, x0, y0, w, h, 0, 0, w, h);
+		pridajDoHistorie(c);
+		setNastroj('posun');
+		vycentruj(c);
+	};
+
 	// Color-to-alpha: prejde celý obrázok a spriehľadní každý pixel
 	// s farbou blízkou aktuálnej farbe. Rovnaká matematika ako tolerančná
 	// guma (prah + plynulý prechod), len globálne.
@@ -634,6 +741,7 @@ export default function Editor() {
 							['kvapkadlo', '💧 Kvapkadlo'],
 							['guma', '🧽 Guma'],
 							['ceruzka', '✏️ Ceruzka'],
+							['orez', '✂️ Orez'],
 						] as const
 					).map(([id, popis]) => (
 						<button
@@ -706,6 +814,64 @@ export default function Editor() {
 						/>
 						<span className="w-12 tabular-nums">{ceruzkaVelkost}px</span>
 					</label>
+				)}
+				{nastroj === 'orez' && (
+					<div className="flex items-center gap-2 text-sm text-slate-300">
+						Pomer
+						<select
+							value={pomerVolba}
+							onChange={(e) => setPomerVolba(e.target.value as PomerVolba)}
+							className="rounded-md border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+						>
+							{POMERY.map(([id, popis]) => (
+								<option key={id} value={id}>
+									{popis}
+								</option>
+							))}
+						</select>
+						{pomerVolba === 'vlastny' && (
+							<span className="flex items-center gap-1">
+								<input
+									type="number"
+									min={1}
+									value={vlastnyPomer.w}
+									onChange={(e) =>
+										setVlastnyPomer((p) => ({ ...p, w: Number(e.target.value) }))
+									}
+									className="w-14 rounded-md border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+								/>
+								:
+								<input
+									type="number"
+									min={1}
+									value={vlastnyPomer.h}
+									onChange={(e) =>
+										setVlastnyPomer((p) => ({ ...p, h: Number(e.target.value) }))
+									}
+									className="w-14 rounded-md border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+								/>
+							</span>
+						)}
+						{orez && (
+							<span className="text-xs text-slate-400">
+								{Math.round(orez.width)} × {Math.round(orez.height)}px
+							</span>
+						)}
+						<button
+							type="button"
+							onClick={aplikujOrez}
+							className="rounded-md bg-emerald-600 px-3 py-1 font-medium text-white hover:bg-emerald-500"
+						>
+							Orezať
+						</button>
+						<button
+							type="button"
+							onClick={() => setNastroj('posun')}
+							className="rounded-md px-2 py-1 text-slate-300 hover:bg-slate-700"
+						>
+							Zrušiť
+						</button>
+					</div>
 				)}
 
 				<button
@@ -878,7 +1044,9 @@ export default function Editor() {
 						? 'cursor-crosshair'
 						: kresliaci
 							? 'cursor-none'
-							: 'cursor-grab'
+							: nastroj === 'orez'
+								? 'cursor-default'
+								: 'cursor-grab'
 				}`}
 				style={sachovnica}
 			>
@@ -914,6 +1082,62 @@ export default function Editor() {
 								fontSize={16}
 								fill="#475569"
 							/>
+						)}
+						{nastroj === 'orez' && orez && obrazok && (
+							<>
+								{/* Stmavenie okolia rámu — 4 obdĺžniky okolo výrezu. */}
+								{(
+									[
+										[0, 0, obrazok.width, orez.y],
+										[0, orez.y + orez.height, obrazok.width, obrazok.height - orez.y - orez.height],
+										[0, orez.y, orez.x, orez.height],
+										[orez.x + orez.width, orez.y, obrazok.width - orez.x - orez.width, orez.height],
+									] as const
+								).map(([rx, ry, rw, rh], i) =>
+									rw > 0 && rh > 0 ? (
+										<Rect
+											key={i}
+											x={rx}
+											y={ry}
+											width={rw}
+											height={rh}
+											fill="black"
+											opacity={0.45}
+											listening={false}
+										/>
+									) : null,
+								)}
+								<Rect
+									ref={orezRectRef}
+									x={orez.x}
+									y={orez.y}
+									width={orez.width}
+									height={orez.height}
+									stroke="#34d399"
+									strokeWidth={1.5}
+									strokeScaleEnabled={false}
+									draggable
+									onDragEnd={prevezmiRam}
+									onTransformEnd={prevezmiRam}
+								/>
+								<Transformer
+									ref={transformerRef}
+									rotateEnabled={false}
+									flipEnabled={false}
+									keepRatio={pomer !== null}
+									enabledAnchors={
+										pomer !== null
+											? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+											: undefined
+									}
+									anchorStroke="#34d399"
+									anchorFill="#0f172a"
+									borderEnabled={false}
+									boundBoxFunc={(stary, novy) =>
+										novy.width < 10 || novy.height < 10 ? stary : novy
+									}
+								/>
+							</>
 						)}
 						{kresliaci && kurzor && (
 							// Krúžok ukazuje presný záber gumy/ceruzky; hrúbka čiary
