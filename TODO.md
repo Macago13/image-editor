@@ -54,7 +54,7 @@ Ako commitovať je popísané dole v sekcii **„Git — ťahák pre začiatočn
 - [x] Presné zadanie výstupnej veľkosti v pixeloch
 - [x] Export do PNG (s priehľadnosťou), JPG, WebP
 - [x] Kvalitný resize pri exporte (cez `pica`)
-- [ ] Dávkový export — jeden obrázok vo viacerých veľkostiach naraz
+- [x] Dávkový export — jeden obrázok vo viacerých veľkostiach naraz
 
 ➡️ **Commit:** `fáza 4: orezanie a export s presným rozmerom`
 

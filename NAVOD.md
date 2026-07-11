@@ -148,6 +148,12 @@ Klikni na **Export** vpravo hore. V okne si vyberieš:
 Klikni **Stiahnuť** a súbor pristane v priečinku Stiahnuté
 (napr. `obrazok-800x600.png`).
 
+**Viac veľkostí naraz** — zaškrtni políčko v exportnom okne a zadaj
+šírky oddelené čiarkou (napr. `1024, 512, 256`). Stiahne sa súbor pre
+každú veľkosť — ideálne, keď potrebuješ logo vo viacerých rozmeroch.
+Prehliadač sa možno raz opýta, či stránke povoliť sťahovanie viacerých
+súborov — povoľ to.
+
 ## Porovnanie pred/po
 
 Chceš skontrolovať, čo všetko si zmenil? **Podrž** tlačidlo **👁 Pred/Po**

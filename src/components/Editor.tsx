@@ -157,6 +157,9 @@ export default function Editor() {
 	const [expRozmer, setExpRozmer] = useState({ w: 0, h: 0 });
 	const [expKvalita, setExpKvalita] = useState(90);
 	const [exportujem, setExportujem] = useState(false);
+	// Dávkový export: viac šírok naraz, oddelených čiarkou.
+	const [davkovy, setDavkovy] = useState(false);
+	const [davkoveSirky, setDavkoveSirky] = useState('1024, 512, 256');
 	// Orezový rám (v súradniciach obrázka) a zvolený pomer strán.
 	const [orez, setOrez] = useState<Ram | null>(null);
 	const [pomerVolba, setPomerVolba] = useState<PomerVolba>('volny');
@@ -676,58 +679,89 @@ export default function Editor() {
 		setExportOtvoreny(true);
 	};
 
-	// Export: zmenší/zväčší cez pica (kvalitný filter, nie rozpixelované
-	// natívne škálovanie), pri JPG podloží bielou (JPG nemá priehľadnosť)
-	// a stiahne súbor. Všetko lokálne.
+	// Vyrobí jeden exportný súbor: zmenší cez pica (kvalitný filter, nie
+	// rozpixelované natívne škálovanie) a pri JPG podloží bielou
+	// (JPG nemá priehľadnosť).
+	const vyrobExport = async (w: number, h: number): Promise<Blob> => {
+		if (!obrazok) throw new Error('nie je čo exportovať');
+		const zdroj = document.createElement('canvas');
+		zdroj.width = obrazok.width;
+		zdroj.height = obrazok.height;
+		zdroj.getContext('2d')?.drawImage(obrazok, 0, 0);
+
+		let vystup = zdroj;
+		if (w !== obrazok.width || h !== obrazok.height) {
+			const ciel = document.createElement('canvas');
+			ciel.width = w;
+			ciel.height = h;
+			const Pica = (await import('pica')).default;
+			await new Pica().resize(zdroj, ciel);
+			vystup = ciel;
+		}
+
+		if (expFormat === 'image/jpeg') {
+			const podlozeny = document.createElement('canvas');
+			podlozeny.width = vystup.width;
+			podlozeny.height = vystup.height;
+			const ctx = podlozeny.getContext('2d');
+			if (ctx) {
+				ctx.fillStyle = '#ffffff';
+				ctx.fillRect(0, 0, podlozeny.width, podlozeny.height);
+				ctx.drawImage(vystup, 0, 0);
+			}
+			vystup = podlozeny;
+		}
+
+		return new Promise((ok, zle) =>
+			vystup.toBlob(
+				(b) => (b ? ok(b) : zle(new Error('toBlob zlyhal'))),
+				expFormat,
+				expKvalita / 100,
+			),
+		);
+	};
+
+	const stiahniSubor = (blob: Blob, w: number, h: number) => {
+		const pripona = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[
+			expFormat
+		];
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = `obrazok-${w}x${h}.${pripona}`;
+		a.click();
+		URL.revokeObjectURL(a.href);
+	};
+
+	// Zoznam veľkostí na export: jedna (zo šírka × výška políčok),
+	// alebo v dávkovom režime každá šírka zo zoznamu „1024, 512, 256".
+	const exportneVelkosti = (): [number, number][] => {
+		if (!obrazok) return [];
+		const orez = (n: number) => Math.min(MAX_SIRKA, Math.max(1, Math.round(n)));
+		if (!davkovy) return [[orez(expRozmer.w), orez(expRozmer.h)]];
+		const pomerObr = obrazok.height / obrazok.width;
+		const sirky = [
+			...new Set(
+				davkoveSirky
+					.split(/[,\s]+/)
+					.map(Number)
+					.filter((n) => Number.isFinite(n) && n >= 1),
+			),
+		];
+		return sirky.map((w) => [orez(w), Math.max(1, Math.round(orez(w) * pomerObr))]);
+	};
+
 	const exportuj = async () => {
 		if (!obrazok || exportujem) return;
-		const w = Math.min(MAX_SIRKA, Math.max(1, Math.round(expRozmer.w)));
-		const h = Math.min(MAX_SIRKA, Math.max(1, Math.round(expRozmer.h)));
+		const velkosti = exportneVelkosti();
+		if (velkosti.length === 0) {
+			alert('Zadaj aspoň jednu platnú šírku (číslo v pixeloch).');
+			return;
+		}
 		setExportujem(true);
 		try {
-			const zdroj = document.createElement('canvas');
-			zdroj.width = obrazok.width;
-			zdroj.height = obrazok.height;
-			zdroj.getContext('2d')?.drawImage(obrazok, 0, 0);
-
-			let vystup = zdroj;
-			if (w !== obrazok.width || h !== obrazok.height) {
-				const ciel = document.createElement('canvas');
-				ciel.width = w;
-				ciel.height = h;
-				const Pica = (await import('pica')).default;
-				await new Pica().resize(zdroj, ciel);
-				vystup = ciel;
+			for (const [w, h] of velkosti) {
+				stiahniSubor(await vyrobExport(w, h), w, h);
 			}
-
-			if (expFormat === 'image/jpeg') {
-				const podlozeny = document.createElement('canvas');
-				podlozeny.width = vystup.width;
-				podlozeny.height = vystup.height;
-				const ctx = podlozeny.getContext('2d');
-				if (ctx) {
-					ctx.fillStyle = '#ffffff';
-					ctx.fillRect(0, 0, podlozeny.width, podlozeny.height);
-					ctx.drawImage(vystup, 0, 0);
-				}
-				vystup = podlozeny;
-			}
-
-			const blob: Blob = await new Promise((ok, zle) =>
-				vystup.toBlob(
-					(b) => (b ? ok(b) : zle(new Error('toBlob zlyhal'))),
-					expFormat,
-					expKvalita / 100,
-				),
-			);
-			const pripona = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[
-				expFormat
-			];
-			const a = document.createElement('a');
-			a.href = URL.createObjectURL(blob);
-			a.download = `obrazok-${w}x${h}.${pripona}`;
-			a.click();
-			URL.revokeObjectURL(a.href);
 			setExportOtvoreny(false);
 		} catch (chyba) {
 			console.error('Export zlyhal:', chyba);
@@ -1313,36 +1347,67 @@ export default function Editor() {
 								))}
 							</div>
 
-							<div className="mt-4 flex items-center gap-2 text-sm text-slate-300">
-								<label className="flex-1">
-									Šírka
-									<input
-										type="number"
-										min={1}
-										max={MAX_SIRKA}
-										value={expRozmer.w}
-										onChange={(e) => nastavExpSirku(Number(e.target.value))}
-										className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
-									/>
-								</label>
-								<span className="mt-5">×</span>
-								<label className="flex-1">
-									Výška
-									<input
-										type="number"
-										min={1}
-										max={MAX_SIRKA}
-										value={expRozmer.h}
-										onChange={(e) => nastavExpVysku(Number(e.target.value))}
-										className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
-									/>
-								</label>
-							</div>
-							<p className="mt-1 text-xs text-slate-500">
-								Rozmery sú zviazané pomerom strán. Pôvodný rozmer:{' '}
-								{obrazok.width} × {obrazok.height}px — iný tvar dosiahneš
-								nástrojom ✂️ Orez.
-							</p>
+							<label className="mt-4 flex items-center gap-1.5 text-sm text-slate-300">
+								<input
+									type="checkbox"
+									checked={davkovy}
+									onChange={(e) => setDavkovy(e.target.checked)}
+									className="accent-emerald-500"
+								/>
+								Viac veľkostí naraz
+							</label>
+
+							{davkovy ? (
+								<>
+									<label className="mt-3 block text-sm text-slate-300">
+										Šírky v pixeloch (oddelené čiarkou)
+										<input
+											value={davkoveSirky}
+											onChange={(e) => setDavkoveSirky(e.target.value)}
+											spellCheck={false}
+											className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 font-mono text-sm text-slate-100"
+										/>
+									</label>
+									<p className="mt-1 text-xs text-slate-500">
+										Výšky sa dopočítajú z pomeru strán. Stiahne sa súbor pre
+										každú veľkosť — prehliadač sa možno raz opýta, či povoliť
+										viac sťahovaní.
+									</p>
+								</>
+							) : (
+								<>
+									<div className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+										<label className="flex-1">
+											Šírka
+											<input
+												type="number"
+												min={1}
+												max={MAX_SIRKA}
+												value={expRozmer.w}
+												onChange={(e) => nastavExpSirku(Number(e.target.value))}
+												className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
+											/>
+										</label>
+										<span className="mt-5">×</span>
+										<label className="flex-1">
+											Výška
+											<input
+												type="number"
+												min={1}
+												max={MAX_SIRKA}
+												value={expRozmer.h}
+												onChange={(e) => nastavExpVysku(Number(e.target.value))}
+												className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
+											/>
+										</label>
+									</div>
+									<p className="mt-1 text-xs text-slate-500">
+										Rozmery sú zviazané pomerom strán. Pôvodný rozmer:{' '}
+										{obrazok.width} × {obrazok.height}px — iný tvar dosiahneš
+										nástrojom ✂️ Orez.
+									</p>
+								</>
+							)}
 
 							{expFormat !== 'image/png' && (
 								<label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
@@ -1373,7 +1438,11 @@ export default function Editor() {
 									disabled={exportujem}
 									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-60"
 								>
-									{exportujem ? 'Pripravujem…' : 'Stiahnuť'}
+									{exportujem
+										? 'Pripravujem…'
+										: davkovy
+											? 'Stiahnuť všetky'
+											: 'Stiahnuť'}
 								</button>
 							</div>
 						</div>
