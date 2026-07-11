@@ -671,12 +671,22 @@ export default function Editor() {
 
 	// Zmena šírky/výšky v exporte — druhý rozmer sa dopočíta podľa
 	// pomeru strán obrázka, aby sa export nezdeformoval.
+	// Vymazané políčko zostáva prázdne (0 = „nič nezadané"), druhý rozmer
+	// sa medzitým nemení — dopočíta sa až z novej hodnoty.
 	const nastavExpSirku = (w: number) => {
 		if (!obrazok) return;
+		if (!Number.isFinite(w) || w <= 0) {
+			setExpRozmer((r) => ({ ...r, w: 0 }));
+			return;
+		}
 		setExpRozmer({ w, h: Math.max(1, Math.round(w * (obrazok.height / obrazok.width))) });
 	};
 	const nastavExpVysku = (h: number) => {
 		if (!obrazok) return;
+		if (!Number.isFinite(h) || h <= 0) {
+			setExpRozmer((r) => ({ ...r, h: 0 }));
+			return;
+		}
 		setExpRozmer({ w: Math.max(1, Math.round(h * (obrazok.width / obrazok.height))), h });
 	};
 
@@ -744,7 +754,11 @@ export default function Editor() {
 	const exportneVelkosti = (): [number, number][] => {
 		if (!obrazok) return [];
 		const orez = (n: number) => Math.min(MAX_SIRKA, Math.max(1, Math.round(n)));
-		if (!davkovy) return [[orez(expRozmer.w), orez(expRozmer.h)]];
+		if (!davkovy) {
+			// Prázdne políčko = žiadna platná veľkosť.
+			if (expRozmer.w < 1 || expRozmer.h < 1) return [];
+			return [[orez(expRozmer.w), orez(expRozmer.h)]];
+		}
 		const pomerObr = obrazok.height / obrazok.width;
 		const sirky = [
 			...new Set(
@@ -761,7 +775,7 @@ export default function Editor() {
 		if (!obrazok || exportujem) return;
 		const velkosti = exportneVelkosti();
 		if (velkosti.length === 0) {
-			alert('Zadaj aspoň jednu platnú šírku (číslo v pixeloch).');
+			alert('Zadaj platný rozmer v pixeloch.');
 			return;
 		}
 		setExportujem(true);
@@ -1061,7 +1075,7 @@ export default function Editor() {
 								<input
 									type="number"
 									min={1}
-									value={vlastnyPomer.w}
+									value={vlastnyPomer.w || ''}
 									onChange={(e) =>
 										setVlastnyPomer((p) => ({ ...p, w: Number(e.target.value) }))
 									}
@@ -1071,7 +1085,7 @@ export default function Editor() {
 								<input
 									type="number"
 									min={1}
-									value={vlastnyPomer.h}
+									value={vlastnyPomer.h || ''}
 									onChange={(e) =>
 										setVlastnyPomer((p) => ({ ...p, h: Number(e.target.value) }))
 									}
@@ -1600,7 +1614,7 @@ export default function Editor() {
 												type="number"
 												min={1}
 												max={MAX_SIRKA}
-												value={expRozmer.w}
+												value={expRozmer.w || ''}
 												onChange={(e) => nastavExpSirku(Number(e.target.value))}
 												className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
 											/>
@@ -1612,7 +1626,7 @@ export default function Editor() {
 												type="number"
 												min={1}
 												max={MAX_SIRKA}
-												value={expRozmer.h}
+												value={expRozmer.h || ''}
 												onChange={(e) => nastavExpVysku(Number(e.target.value))}
 												className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
 											/>
@@ -1652,7 +1666,10 @@ export default function Editor() {
 								<button
 									type="button"
 									onClick={exportuj}
-									disabled={exportujem}
+									disabled={
+										exportujem ||
+										(!davkovy && (expRozmer.w < 1 || expRozmer.h < 1))
+									}
 									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-wait disabled:opacity-60"
 								>
 									{exportujem
@@ -1680,7 +1697,7 @@ export default function Editor() {
 									type="number"
 									min={MIN_SIRKA}
 									max={MAX_SIRKA}
-									value={svgSirka}
+									value={svgSirka || ''}
 									onChange={(e) => setSvgSirka(Number(e.target.value))}
 									className="mt-1 w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-1.5 text-slate-100"
 								/>
@@ -1699,7 +1716,8 @@ export default function Editor() {
 								<button
 									type="button"
 									onClick={vlozSvg}
-									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+									disabled={!svgSirka}
+									className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
 								>
 									Vložiť
 								</button>
