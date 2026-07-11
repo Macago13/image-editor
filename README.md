@@ -1,43 +1,39 @@
-# Astro Starter Kit: Minimal
+# Editor obrázkov
+
+Jednoduchý webový editor obrázkov, ktorý beží **celý v prehliadači** —
+súbory nikdy neopúšťajú tvoj počítač.
+
+**▶ Vyskúšaj naživo: https://image-editor-tau-one.vercel.app/**
+
+## Čo vie
+
+- **Import:** PNG, JPG, WebP, GIF, BMP, HEIC (fotky z iPhonu) aj SVG
+- **Odstránenie pozadia:** AI (lokálne v prehliadači) alebo podľa farby
+  (color-to-alpha s toleranciou)
+- **Retuš:** guma (aj tolerančná — maže len zvolenú farbu), ceruzka,
+  kvapkadlo, paleta s presným hex vstupom
+- **Orez** s voľným aj zamknutým pomerom strán
+- **Export:** PNG / JPG / WebP, presný rozmer v pixeloch, kvalitný resize,
+  dávkový export viacerých veľkostí naraz
+- **Vektorizácia** do SVG s posterizáciou a zamknutou brand paletou
+- Undo/redo, náhľad pred/po, zoom a posun plátna
+
+Návod na používanie: [NAVOD.md](NAVOD.md)
+
+## Tech stack
+
+Astro + React (jeden ostrov) + Tailwind v4 + Konva. Pixelové operácie cez
+`ImageData`. AI odstránenie pozadia: `@imgly/background-removal` (AGPL)
+vo Web Workeri — vyžaduje COOP/COEP hlavičky (`vercel.json`,
+`astro.config.mjs`). HEIC: `heic2any` · resize: `pica` ·
+vektorizácia: `imagetracerjs`.
+
+## Vývoj
 
 ```sh
-npm create astro@latest -- --template minimal
+npm install       # závislosti
+npm run dev       # dev server na localhost:4321
+npm run build     # produkčný build do ./dist/
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Nasadzuje sa automaticky na Vercel pri každom pushi na `main`.
