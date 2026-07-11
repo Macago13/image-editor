@@ -40,6 +40,18 @@ nástroje (ceruzka, odstránenie podľa farby).
 Tip: keď potrebuješ trafiť presný pixel, najprv si miesto priblíž
 kolieskom myši.
 
+### 🧽 Guma
+
+Vymaže časť obrázka do priehľadna — kade potiahneš, tam zostane
+šachovnica (= nič). Veľkosť gumy nastavíš posuvníkom v hlavičke;
+krúžok pri kurzore presne ukazuje, čo guma zasiahne.
+
+Každý ťah gumou je jeden krok histórie — **Ctrl + Z** ho vráti celý
+naraz.
+
+Tip: na jemné dočisťovanie okrajov si obrázok najprv priblíž a nastav
+malú gumu.
+
 ## Krok späť a znova
 
 Pomýlil/a si sa? Vpravo hore sú tlačidlá **↶ Späť** a **↷ Znova**, alebo

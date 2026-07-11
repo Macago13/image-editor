@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, CSSProperties } from 'react';
-import { Stage, Layer, Image as KonvaImage, Text } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Text, Circle } from 'react-konva';
 import type Konva from 'konva';
 
 // Šachovnica cez CSS gradient — signalizuje priehľadné časti plátna.
@@ -55,7 +55,9 @@ const MAX_SIRKA = 8192; // bezpečný limit veľkosti canvasu v prehliadačoch
 // Koľko krokov späť si pamätáme — každý stav drží celý obrázok v pamäti.
 const MAX_HISTORIA = 30;
 
-type Nastroj = 'posun' | 'kvapkadlo';
+type Nastroj = 'posun' | 'kvapkadlo' | 'guma';
+
+type Bod = { x: number; y: number };
 
 const doHex = (n: number) => n.toString(16).padStart(2, '0');
 
@@ -73,6 +75,16 @@ export default function Editor() {
 	const [svgSirka, setSvgSirka] = useState(1024);
 	const [nastroj, setNastroj] = useState<Nastroj>('posun');
 	const [farba, setFarba] = useState('#000000');
+	const [gumaVelkost, setGumaVelkost] = useState(40);
+	// Pracovná kópia obrázka počas ťahu gumou; do histórie ide až po pustení myši.
+	const [pracovny, setPracovny] = useState<HTMLCanvasElement | null>(null);
+	const kreslimRef = useRef(false);
+	const poslednyBodRef = useRef<Bod | null>(null);
+	// Pozícia kurzora v súradniciach obrázka — na krúžok ukazujúci veľkosť gumy.
+	const [kurzor, setKurzor] = useState<Bod | null>(null);
+
+	// Na plátne sa zobrazuje pracovná kópia (počas ťahu), inak aktuálny krok histórie.
+	const zobrazeny = pracovny ?? obrazok;
 
 	// Neviditeľný canvas s pixelmi aktuálneho obrázka — z neho číta kvapkadlo.
 	// Vyrába sa nanovo len pri zmene obrázka, nie pri každom kliku.
@@ -230,21 +242,89 @@ export default function Editor() {
 		setCakajuceSvg(null);
 	};
 
-	// Klik kvapkadlom: prepočíta pozíciu kurzora na pixel obrázka
-	// (odčíta posun plátna, vydelí zoomom) a prečíta jeho farbu.
+	// Pozícia kurzora prepočítaná do súradníc obrázka
+	// (odčíta posun plátna, vydelí zoomom).
+	const bodNaObrazku = (): Bod | null => {
+		const stage = stageRef.current;
+		const poloha = stage?.getPointerPosition();
+		if (!stage || !poloha) return null;
+		return {
+			x: (poloha.x - stage.x()) / stage.scaleX(),
+			y: (poloha.y - stage.y()) / stage.scaleY(),
+		};
+	};
+
+	// Klik kvapkadlom: prečíta farbu pixelu pod kurzorom.
 	const priKliknuti = () => {
 		if (nastroj !== 'kvapkadlo' || !obrazok || !pixelCtx) return;
-		const stage = stageRef.current;
-		const kurzor = stage?.getPointerPosition();
-		if (!stage || !kurzor) return;
-
-		const x = Math.floor((kurzor.x - stage.x()) / stage.scaleX());
-		const y = Math.floor((kurzor.y - stage.y()) / stage.scaleY());
+		const bod = bodNaObrazku();
+		if (!bod) return;
+		const x = Math.floor(bod.x);
+		const y = Math.floor(bod.y);
 		if (x < 0 || y < 0 || x >= obrazok.width || y >= obrazok.height) return;
 
 		const [r, g, b, alfa] = pixelCtx.getImageData(x, y, 1, 1).data;
 		if (alfa === 0) return; // priehľadné miesto — nie je z čoho brať farbu
 		setFarba(`#${doHex(r)}${doHex(g)}${doHex(b)}`);
+	};
+
+	// Vymaže (spriehľadní) čiaru z bodu do bodu — režim destination-out
+	// z obrázka „vyrezáva". Rovnaký bod dvakrát = bodka.
+	const gumujSegment = (platno: HTMLCanvasElement, od: Bod, kam: Bod) => {
+		const ctx = platno.getContext('2d');
+		if (!ctx) return;
+		ctx.save();
+		ctx.globalCompositeOperation = 'destination-out';
+		if (od.x === kam.x && od.y === kam.y) {
+			ctx.beginPath();
+			ctx.arc(od.x, od.y, gumaVelkost / 2, 0, Math.PI * 2);
+			ctx.fill();
+		} else {
+			ctx.lineWidth = gumaVelkost;
+			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
+			ctx.beginPath();
+			ctx.moveTo(od.x, od.y);
+			ctx.lineTo(kam.x, kam.y);
+			ctx.stroke();
+		}
+		ctx.restore();
+	};
+
+	// Stlačenie myši s gumou: vyrobí pracovnú kópiu a vymaže prvú bodku.
+	const zacniTah = () => {
+		if (nastroj !== 'guma' || !obrazok) return;
+		const kopia = document.createElement('canvas');
+		kopia.width = obrazok.width;
+		kopia.height = obrazok.height;
+		kopia.getContext('2d')?.drawImage(obrazok, 0, 0);
+
+		const bod = bodNaObrazku();
+		if (bod) gumujSegment(kopia, bod, bod);
+		poslednyBodRef.current = bod;
+		kreslimRef.current = true;
+		setPracovny(kopia);
+	};
+
+	// Pohyb myši: posúva krúžok gumy a počas ťahu maže po čiare.
+	const priPohybe = () => {
+		const bod = bodNaObrazku();
+		setKurzor(bod);
+		if (!kreslimRef.current || !pracovny || !bod) return;
+		gumujSegment(pracovny, poslednyBodRef.current ?? bod, bod);
+		poslednyBodRef.current = bod;
+		stageRef.current?.batchDraw();
+	};
+
+	// Pustenie myši: hotový ťah sa uloží ako jeden krok histórie.
+	const ukonciTah = () => {
+		if (!kreslimRef.current) return;
+		kreslimRef.current = false;
+		poslednyBodRef.current = null;
+		if (pracovny) {
+			pridajDoHistorie(pracovny);
+			setPracovny(null);
+		}
 	};
 
 	// Zoom kolieskom myši — približuje smerom ku kurzoru, nie k stredu.
@@ -299,6 +379,7 @@ export default function Editor() {
 						[
 							['posun', '✋ Posun'],
 							['kvapkadlo', '💧 Kvapkadlo'],
+							['guma', '🧽 Guma'],
 						] as const
 					).map(([id, popis]) => (
 						<button
@@ -315,6 +396,21 @@ export default function Editor() {
 						</button>
 					))}
 				</div>
+
+				{nastroj === 'guma' && (
+					<label className="flex items-center gap-2 text-sm text-slate-300">
+						Veľkosť
+						<input
+							type="range"
+							min={4}
+							max={300}
+							value={gumaVelkost}
+							onChange={(e) => setGumaVelkost(Number(e.target.value))}
+							className="w-32 accent-emerald-500"
+						/>
+						<span className="w-12 tabular-nums">{gumaVelkost}px</span>
+					</label>
+				)}
 
 				<div
 					className="flex items-center gap-2 text-sm text-slate-300"
@@ -352,7 +448,11 @@ export default function Editor() {
 			<main
 				ref={obalRef}
 				className={`relative flex-1 overflow-hidden ${
-					nastroj === 'kvapkadlo' ? 'cursor-crosshair' : 'cursor-grab'
+					nastroj === 'kvapkadlo'
+						? 'cursor-crosshair'
+						: nastroj === 'guma'
+							? 'cursor-none'
+							: 'cursor-grab'
 				}`}
 				style={sachovnica}
 			>
@@ -364,10 +464,20 @@ export default function Editor() {
 					onWheel={priZoome}
 					onClick={priKliknuti}
 					onTap={priKliknuti}
+					onMouseDown={zacniTah}
+					onTouchStart={zacniTah}
+					onMouseMove={priPohybe}
+					onTouchMove={priPohybe}
+					onMouseUp={ukonciTah}
+					onTouchEnd={ukonciTah}
+					onMouseLeave={() => {
+						setKurzor(null);
+						ukonciTah();
+					}}
 				>
 					<Layer>
-						{obrazok ? (
-							<KonvaImage image={obrazok} />
+						{zobrazeny ? (
+							<KonvaImage image={zobrazeny} />
 						) : (
 							<Text
 								x={rozmer.width / 2 - 220}
@@ -377,6 +487,19 @@ export default function Editor() {
 								text="Zatiaľ je plátno prázdne — klikni hore na „Otvoriť obrázok“"
 								fontSize={16}
 								fill="#475569"
+							/>
+						)}
+						{nastroj === 'guma' && kurzor && (
+							// Krúžok ukazuje presný záber gumy; hrúbka čiary sa
+							// nezväčšuje so zoomom (strokeScaleEnabled).
+							<Circle
+								x={kurzor.x}
+								y={kurzor.y}
+								radius={gumaVelkost / 2}
+								stroke="#0f172a"
+								strokeWidth={1.5}
+								strokeScaleEnabled={false}
+								listening={false}
 							/>
 						)}
 					</Layer>
